@@ -1,0 +1,768 @@
+<div class="page-shell">
+  <!-- TOPBAR (COMPLETELY DECOUPLED: ZERO VENDOR OR MANAGER BUTTONS) -->
+  <header class="topbar">
+    <div class="brand-block">
+      <div class="brand">MoveInSync</div>
+      <div class="subtitle">Employee Mobility Portal & Personal Commute Center</div>
+    </div>
+
+    <!-- TABS -->
+    <nav class="nav-tabs">
+      <button 
+        type="button" 
+        [class.active]="activeTab === 'overview'" 
+        (click)="activeTab = 'overview'">
+        Today & All Activities
+      </button>
+      <button 
+        type="button" 
+        [class.active]="activeTab === 'live'" 
+        (click)="activeTab = 'live'">
+        Digital Boarding Pass
+      </button>
+      <button 
+        type="button" 
+        [class.active]="activeTab === 'safety'" 
+        (click)="activeTab = 'safety'">
+        Safety & Escort Radar
+      </button>
+      <button 
+        type="button" 
+        [class.active]="activeTab === 'feedback'" 
+        (click)="activeTab = 'feedback'">
+        Rate Commute & CSAT
+      </button>
+      <button 
+        type="button" 
+        [class.active]="activeTab === 'copilot'" 
+        (click)="activeTab = 'copilot'">
+        AI Commute Copilot
+      </button>
+    </nav>
+
+    <div class="user-pill-wrap">
+      <div class="route-badge">
+        Rider: <code>{{ employeeId }}</code>
+      </div>
+      <a routerLink="/login" class="sign-out-btn" title="Sign Out to Login Portal">🚪 Sign Out</a>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <!-- SOS EMERGENCY BANNER (WHEN TRIGGERED) -->
+    <section class="sos-banner" *ngIf="sosAlertActive && sosResponse">
+      <div class="sos-banner-content">
+        <div class="sos-icon-pulse">🚨</div>
+        <div>
+          <h3>EMERGENCY PROTOCOL BROADCAST ACTIVE</h3>
+          <p>{{ sosResponse.message }}</p>
+          <small>Incident ID: <strong>{{ sosResponse.incidentId }}</strong> | Broadcast Time: {{ sosResponse.timestamp }}</small>
+        </div>
+      </div>
+      <button type="button" class="dismiss-btn" (click)="dismissSos()">Dismiss Alert</button>
+    </section>
+
+    <!-- EMPLOYEE PROFILE HEADER BANNER -->
+    <section class="employee-profile-banner" *ngIf="dashboardData">
+      <div class="profile-main">
+        <div class="employee-avatar">
+          <span>{{ dashboardData.profile.employeeName.charAt(0) }}</span>
+        </div>
+        <div class="employee-info">
+          <div class="employee-title-row">
+            <h2>{{ dashboardData.profile.employeeName }}</h2>
+            <span class="stwid-pill">{{ dashboardData.profile.stwid }}</span>
+            <span class="company-pill">🏢 {{ dashboardData.profile.companyName }}</span>
+            <span class="gender-pill">{{ dashboardData.profile.gender }}</span>
+          </div>
+          <p class="employee-sub">
+            {{ dashboardData.profile.role }} • {{ dashboardData.profile.office }} • Reports to: <strong>{{ dashboardData.profile.managerName }} ({{ dashboardData.profile.managerId }})</strong>
+          </p>
+        </div>
+      </div>
+
+      <div class="employee-scope-card">
+        <div class="scope-stat">
+          <span>On-Time Boarding</span>
+          <strong class="success-text">{{ dashboardData.profile.onTimeBoardingRate }}%</strong>
+        </div>
+        <div class="scope-divider"></div>
+        <div class="scope-stat">
+          <span>Total Distance</span>
+          <strong>{{ dashboardData.commuteStats.totalKmTraveled }} km</strong>
+        </div>
+        <div class="scope-divider"></div>
+        <div class="scope-stat">
+          <span>Safety Compliance</span>
+          <strong class="gold-text">★ {{ dashboardData.profile.safetyScore }}%</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- FILTER BAR -->
+    <section class="filter-bar" *ngIf="dashboardData">
+      <div class="filter-group">
+        <label for="monthSelect">📅 Filter Period / History:</label>
+        <select id="monthSelect" [(ngModel)]="selectedMonth" (change)="onFilterChange()" class="filter-select">
+          <option *ngFor="let m of availableMonths" [value]="m">{{ m }}</option>
+        </select>
+      </div>
+
+      <div class="active-filter-badge">
+        Rider: <strong>{{ dashboardData?.profile?.employeeName }} ({{ employeeId }})</strong> | Period: <strong>{{ selectedMonth }}</strong>
+      </div>
+    </section>
+
+    <!-- TAB 1: OVERVIEW - TODAY'S RIDE DETAILS & ALL HISTORICAL DATA -->
+    <ng-container *ngIf="activeTab === 'overview' && dashboardData">
+      
+      <!-- TODAY'S RIDE DETAILS SECTION (IF ANY) -->
+      <section class="today-ride-section" *ngIf="dashboardData.liveTrip">
+        <div class="today-ride-header">
+          <div class="today-title-wrap">
+            <span class="live-pill" [class.pulse]="dashboardData.liveTrip.status === 'IN_TRANSIT'">
+              ● {{ dashboardData.liveTrip.status }}
+            </span>
+            <div>
+              <h2>Today's Ride Details</h2>
+              <p class="today-subtitle">{{ dashboardData.liveTrip.tripDate }} • {{ dashboardData.liveTrip.shiftType }}</p>
+            </div>
+          </div>
+
+          <div class="today-header-actions" *ngIf="dashboardData.liveTrip.hasRideToday">
+            <div class="otp-pill">
+              <span class="otp-label">BOARDING OTP</span>
+              <span class="otp-val">{{ dashboardData.liveTrip.boardingOtp }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="dashboardData.liveTrip.hasRideToday; else noRideToday" class="today-ride-content">
+          <div class="today-grid">
+            <!-- Col 1: Route & Cab -->
+            <div class="today-card">
+              <div class="card-icon">🚖</div>
+              <div class="card-body">
+                <span class="card-label">Assigned Cab & Route</span>
+                <strong class="card-val">{{ dashboardData.liveTrip.cabReg }}</strong>
+                <small class="route-tag">{{ dashboardData.liveTrip.routeId }} • {{ dashboardData.liveTrip.tripType }} Shift</small>
+              </div>
+            </div>
+
+            <!-- Col 2: Driver Info -->
+            <div class="today-card">
+              <div class="card-icon">👤</div>
+              <div class="card-body">
+                <span class="card-label">Designated Driver</span>
+                <strong class="card-val">{{ dashboardData.liveTrip.driverName }}</strong>
+                <div class="driver-call-row">
+                  <span>{{ dashboardData.liveTrip.driverPhone }}</span>
+                  <a [href]="'tel:' + dashboardData.liveTrip.driverPhone" class="call-link-btn">📞 Call</a>
+                </div>
+              </div>
+            </div>
+
+            <!-- Col 3: Pickup & ETA -->
+            <div class="today-card">
+              <div class="card-icon">📍</div>
+              <div class="card-body">
+                <span class="card-label">Pickup & Arrival Window</span>
+                <strong class="card-val eta-highlight" [class.warning-text]="dashboardData.liveTrip.etaMinutes > 15">
+                  {{ dashboardData.liveTrip.etaMinutes === 0 ? 'Arrived at Stop' : 'ETA ' + dashboardData.liveTrip.etaMinutes + ' mins away' }}
+                </strong>
+                <small>Scheduled: {{ dashboardData.liveTrip.scheduledPickupTime }} • {{ dashboardData.liveTrip.pickupLocation }}</small>
+              </div>
+            </div>
+
+            <!-- Col 4: Safety Escort -->
+            <div class="today-card">
+              <div class="card-icon">🛡️</div>
+              <div class="card-body">
+                <span class="card-label">Security & Escort Status</span>
+                <strong class="card-val" [class.success-text]="dashboardData.liveTrip.escortAssigned">
+                  {{ dashboardData.liveTrip.escortAssigned ? 'Security Escort Active' : 'Corridor Telemetry' }}
+                </strong>
+                <small>{{ dashboardData.liveTrip.escortAssigned ? dashboardData.liveTrip.escortName : 'Standard daylight geofence monitoring' }}</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <div class="today-actions-row">
+            <button 
+              type="button" 
+              class="action-btn-primary" 
+              (click)="confirmBoarding()" 
+              [disabled]="dashboardData.liveTrip.status === 'BOARDED'">
+              {{ dashboardData.liveTrip.status === 'BOARDED' ? '✓ Boarded Successfully' : 'Board Cab (Verify OTP ' + dashboardData.liveTrip.boardingOtp + ')' }}
+            </button>
+
+            <button 
+              type="button" 
+              class="action-btn-danger" 
+              (click)="triggerSos()" 
+              [disabled]="sosTriggering">
+              {{ sosTriggering ? 'Broadcasting SOS...' : '🚨 Trigger Emergency SOS' }}
+            </button>
+
+            <button 
+              type="button" 
+              class="action-btn-outline" 
+              (click)="activeTab = 'live'">
+              View Full Digital Boarding Pass ↗
+            </button>
+          </div>
+
+          <div *ngIf="boardingConfirmed" class="success-alert-box">
+            {{ boardingMessage }}
+          </div>
+        </div>
+
+        <ng-template #noRideToday>
+          <div class="no-ride-box">
+            <span class="no-ride-icon">☕</span>
+            <div>
+              <h3>No Commute Scheduled For Today</h3>
+              <p>You have no active or scheduled cab booking for {{ dashboardData.liveTrip.tripDate }}. This corresponds to your weekly rest schedule or approved remote work.</p>
+              <small>Need an unscheduled ride? Use the MoveInSync AI Copilot or contact your manager <strong>{{ dashboardData.profile.managerName }}</strong>.</small>
+            </div>
+          </div>
+        </ng-template>
+      </section>
+
+      <!-- HISTORICAL DATA LOG SECTION -->
+      <section class="historical-data-section">
+        <div class="section-title-bar">
+          <div>
+            <p class="eyebrow">ALL HISTORICAL DATA • COMMUTE AUDIT LOG</p>
+            <h2>All Historical Commute Activities ({{ selectedMonth }})</h2>
+            <p class="section-sub">
+              Complete day-by-day audit trail of all {{ totalDaysCount }} calendar days in {{ selectedMonth }}, tracking working shift commutes, weekend rest days, WFH leaves, pickup times, and delay attributions.
+            </p>
+          </div>
+          <div class="hero-badge">
+            <span>📅</span> {{ totalDaysCount }} Days Tracked
+          </div>
+        </div>
+
+        <!-- KPI METRIC ROW (5/6 COLUMNS) -->
+        <section class="metric-summary-row five-col">
+          <div class="stat-box info">
+            <span>Total Days Tracked</span>
+            <strong>{{ totalDaysCount }} Days</strong>
+            <small>{{ selectedMonth }}</small>
+          </div>
+          <div class="stat-box success">
+            <span>Commuted Shifts</span>
+            <strong>{{ commutedDaysCount }} Shifts</strong>
+            <small>{{ dashboardData.commuteStats.onTimePercentage }}% on-time rate</small>
+          </div>
+          <div class="stat-box warning">
+            <span>Delayed Shifts</span>
+            <strong>{{ delayedDaysCount }} Shifts</strong>
+            <small>Traffic or corridor detours</small>
+          </div>
+          <div class="stat-box danger" *ngIf="noShowDaysCount > 0">
+            <span>No-Shows</span>
+            <strong>{{ noShowDaysCount }} Day(s)</strong>
+            <small>Personal emergency / Leave</small>
+          </div>
+          <div class="stat-box">
+            <span>Rest / Off Days</span>
+            <strong>{{ offDaysCount }} Days</strong>
+            <small>Weekends & WFH</small>
+          </div>
+          <div class="stat-box">
+            <span>Total Distance</span>
+            <strong>{{ dashboardData.commuteStats.totalKmTraveled }} km</strong>
+            <small>Verified GPS distance</small>
+          </div>
+        </section>
+
+        <!-- ACTIVITIES DATA TABLE -->
+        <section class="panel full-width">
+          <div class="panel-header table-header-flex">
+            <div>
+              <h2>Daily Activity Records ({{ selectedMonth }})</h2>
+              <span>All {{ totalDaysCount }} calendar days tracked for {{ dashboardData.profile.employeeName }}</span>
+            </div>
+
+            <div class="table-filter-pills">
+              <button type="button" [class.active]="historyFilter === 'ALL'" (click)="historyFilter = 'ALL'">
+                All Days ({{ totalDaysCount }})
+              </button>
+              <button type="button" [class.active]="historyFilter === 'COMMUTED'" (click)="historyFilter = 'COMMUTED'">
+                Commuted Only ({{ commutedDaysCount }})
+              </button>
+              <button type="button" [class.active]="historyFilter === 'ON_TIME'" (click)="historyFilter = 'ON_TIME'">
+                On-Time ({{ onTimeDaysCount }})
+              </button>
+              <button type="button" [class.active]="historyFilter === 'DELAYED'" (click)="historyFilter = 'DELAYED'">
+                Delayed ({{ delayedDaysCount }})
+              </button>
+              <button type="button" [class.active]="historyFilter === 'NO_SHOW'" (click)="historyFilter = 'NO_SHOW'" *ngIf="noShowDaysCount > 0">
+                No-Shows ({{ noShowDaysCount }})
+              </button>
+              <button type="button" [class.active]="historyFilter === 'OFF'" (click)="historyFilter = 'OFF'">
+                Weekend & Off ({{ offDaysCount }})
+              </button>
+            </div>
+          </div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Day & Date</th>
+                <th>Shift & Service</th>
+                <th>Route & Cab</th>
+                <th>Pickup Window (Plan vs Actual)</th>
+                <th>Distance (Plan vs Actual)</th>
+                <th>Activity Status</th>
+                <th>Delay / Activity Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of filteredHistory" [class.row-weekend]="item.boardingStatus === 'Weekend Off'">
+                <td>
+                  <div class="date-cell">
+                    <strong>{{ item.tripDate }}</strong>
+                    <span class="dow-pill" [class.weekend-pill]="item.dayOfWeek === 'Sat' || item.dayOfWeek === 'Sun'">
+                      {{ item.dayOfWeek }}
+                    </span>
+                  </div>
+                  <small class="code-id">{{ item.tripId }}</small>
+                </td>
+                <td>
+                  <strong>{{ item.shiftType }}</strong>
+                  <br>
+                  <small class="site-text">{{ item.tripType }}</small>
+                </td>
+                <td>
+                  <ng-container *ngIf="item.routeId !== 'N/A'; else naVehicle">
+                    <strong>{{ item.routeId }}</strong>
+                    <br>
+                    <code class="cab-badge">{{ item.cabReg }}</code>
+                  </ng-container>
+                  <ng-template #naVehicle>
+                    <span class="muted-text">—</span>
+                  </ng-template>
+                </td>
+                <td>
+                  <ng-container *ngIf="item.plannedPickup !== '--:--'; else naTime">
+                    <span>Planned: {{ item.plannedPickup }}</span>
+                    <br>
+                    <small [class.warning-text]="item.actualPickup !== item.plannedPickup">Actual: {{ item.actualPickup }}</small>
+                  </ng-container>
+                  <ng-template #naTime>
+                    <span class="muted-text">Off-Shift</span>
+                  </ng-template>
+                </td>
+                <td>
+                  <ng-container *ngIf="item.plannedKm > 0; else naKm">
+                    <span>{{ item.plannedKm }} km plan</span>
+                    <br>
+                    <small [class.warning-text]="item.traveledKm > item.plannedKm + 2">{{ item.traveledKm }} km actual</small>
+                  </ng-container>
+                  <ng-template #naKm>
+                    <span class="muted-text">0.0 km</span>
+                  </ng-template>
+                </td>
+                <td>
+                  <span class="status-pill" 
+                    [class.verified]="item.boardingStatus === 'Boarded'" 
+                    [class.warning-pill]="item.boardingStatus === 'Delayed'"
+                    [class.flagged]="item.isNoShow || item.boardingStatus === 'No-Show'"
+                    [class.off-pill]="item.boardingStatus === 'Weekend Off' || item.boardingStatus.includes('WFH')">
+                    {{ item.boardingStatus }}
+                  </span>
+                </td>
+                <td>
+                  <span [class.danger-text]="item.delayMinutes > 15" [class.warning-text]="item.delayMinutes > 0 && item.delayMinutes <= 15" [class.success-text]="item.delayMinutes === 0 && item.boardingStatus === 'Boarded'">
+                    {{ item.delayMinutes > 0 ? '+' + item.delayMinutes + ' min delay' : (item.boardingStatus === 'Boarded' ? 'On-Time' : '') }}
+                  </span>
+                  <span class="reason-cell" *ngIf="item.noShowReason">{{ item.noShowReason }}</span>
+                  <span class="muted-text" *ngIf="!item.noShowReason && item.delayMinutes === 0 && item.boardingStatus !== 'Boarded'">Scheduled rest</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      </section>
+    </ng-container>
+
+    <!-- TAB 2: LIVE TRIP & DIGITAL BOARDING PASS (DEDICATED FULL PASS) -->
+    <ng-container *ngIf="activeTab === 'live' && dashboardData">
+      <section class="hero-card">
+        <div>
+          <p class="eyebrow">LIVE TRIP TELEMETRY • MOVEINSYNC RIDER ASSIST</p>
+          <h1>Today's Commute: {{ dashboardData.liveTrip.shiftType }}</h1>
+          <p class="hero-description">
+            Live transit tracking, scheduled pickup ETA, driver telemetry, and digital OTP boarding verification for your active shift.
+          </p>
+        </div>
+        <div class="hero-badge" [class.pulse]="dashboardData.liveTrip.status === 'IN_TRANSIT'">
+          <span>●</span> {{ dashboardData.liveTrip.status }}
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <!-- DIGITAL BOARDING PASS CARD -->
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Digital Boarding Pass</h2>
+            <span class="badge-success">Trip: {{ dashboardData.liveTrip.tripId }}</span>
+          </div>
+
+          <div class="boarding-pass">
+            <div class="pass-header">
+              <div>
+                <span class="route-title">{{ dashboardData.liveTrip.routeId }}</span>
+                <span class="trip-leg">{{ dashboardData.liveTrip.tripType }} Shift Commute</span>
+              </div>
+              <div class="otp-box">
+                <small>BOARDING OTP</small>
+                <div class="otp-code">{{ dashboardData.liveTrip.boardingOtp }}</div>
+              </div>
+            </div>
+
+            <div class="pass-details-grid">
+              <div class="pass-item">
+                <label>Vehicle Registration</label>
+                <strong>{{ dashboardData.liveTrip.cabReg }}</strong>
+              </div>
+              <div class="pass-item">
+                <label>Driver</label>
+                <strong>{{ dashboardData.liveTrip.driverName }}</strong>
+                <small>{{ dashboardData.liveTrip.driverPhone }}</small>
+              </div>
+              <div class="pass-item">
+                <label>Scheduled Pickup</label>
+                <strong>{{ dashboardData.liveTrip.scheduledPickupTime }}</strong>
+              </div>
+              <div class="pass-item">
+                <label>Live ETA</label>
+                <strong [class.success-text]="dashboardData.liveTrip.etaMinutes <= 15" [class.warning-text]="dashboardData.liveTrip.etaMinutes > 15">
+                  {{ dashboardData.liveTrip.etaMinutes === 0 ? 'Arrived at Stop' : dashboardData.liveTrip.etaMinutes + ' mins away' }}
+                </strong>
+              </div>
+            </div>
+
+            <div class="pickup-stop-box">
+              <span class="stop-icon">📍</span>
+              <div>
+                <small>Assigned Pickup Stop</small>
+                <p>{{ dashboardData.liveTrip.pickupLocation }}</p>
+              </div>
+            </div>
+
+            <!-- ESCORT STATUS BANNER -->
+            <div class="escort-banner" [class.active-escort]="dashboardData.liveTrip.escortAssigned">
+              <span class="shield-icon">🛡️</span>
+              <div>
+                <strong>Night Security Escort Protocol: {{ dashboardData.liveTrip.escortAssigned ? 'ACTIVE' : 'STANDARD' }}</strong>
+                <p>{{ dashboardData.liveTrip.escortAssigned ? dashboardData.liveTrip.escortName : 'Standard daytime corridor telemetry monitoring.' }}</p>
+              </div>
+            </div>
+
+            <!-- BOARDING ACTIONS -->
+            <div class="boarding-actions">
+              <button 
+                type="button" 
+                class="action-btn-primary" 
+                (click)="confirmBoarding()" 
+                [disabled]="dashboardData.liveTrip.status === 'BOARDED'">
+                {{ dashboardData.liveTrip.status === 'BOARDED' ? '✓ Boarded Successfully' : 'Boarded Cab (Confirm OTP)' }}
+              </button>
+
+              <button 
+                type="button" 
+                class="action-btn-danger" 
+                (click)="triggerSos()" 
+                [disabled]="sosTriggering">
+                {{ sosTriggering ? 'Broadcasting SOS...' : '🚨 Trigger Emergency SOS' }}
+              </button>
+            </div>
+
+            <div *ngIf="boardingConfirmed" class="success-alert-box">
+              {{ boardingMessage }}
+            </div>
+          </div>
+        </div>
+
+        <!-- COMMUTE PROTOCOL & LIVE ADVISORY -->
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Commute Duty of Care & Support</h2>
+            <span>24/7 Transport Desk</span>
+          </div>
+
+          <div class="protocol-card">
+            <div class="protocol-metric">
+              <span class="protocol-score">100%</span>
+              <div>
+                <strong>Safe Commute Guarantee</strong>
+                <p>Every trip is geofenced and monitored by MoveInSync automated telemetry with instant manager alerts on anomalies.</p>
+              </div>
+            </div>
+
+            <div class="protocol-checklist">
+              <div class="check-item"><span class="check-icon">✓</span> Security OTP verification required before departure</div>
+              <div class="check-item"><span class="check-icon">✓</span> Female employee night drop accompanied by certified marshal</div>
+              <div class="check-item"><span class="check-icon">✓</span> Real-time delay sync with manager {{ dashboardData.profile.managerName }}</div>
+              <div class="check-item"><span class="check-icon">✓</span> 24/7 SOS desk hotline: <strong>+91-80-4911-0000</strong></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </ng-container>
+
+    <!-- TAB 3: SAFETY & ESCORT RADAR -->
+    <ng-container *ngIf="activeTab === 'safety' && dashboardData">
+      <section class="hero-card">
+        <div>
+          <p class="eyebrow">PERSONAL SAFETY RADAR • {{ dashboardData.profile.employeeName | uppercase }}</p>
+          <h1>Safety Protocols & Escort Protection</h1>
+          <p class="hero-description">
+            MoveInSync Guardian protects every journey with automated telemetry monitoring, female night drop security escorts, SOS panic readiness, and emergency response teams.
+          </p>
+        </div>
+        <div class="hero-badge">
+          <span>🛡️</span> Guardian Active
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <!-- ACTIVE ALERTS / INCIDENT LOGS -->
+        <div class="panel">
+          <div class="panel-header">
+            <h2>My Commute Safety Records</h2>
+            <span class="danger-text">{{ dashboardData.safetyAlerts.length }} Incident(s) Logged</span>
+          </div>
+
+          <div class="alert-list" *ngIf="dashboardData.safetyAlerts.length > 0; else noSafetyAlerts">
+            <div *ngFor="let alert of dashboardData.safetyAlerts" class="alert-item">
+              <div class="alert-severity" [class.sev1]="alert.severity === 'Sev-1'" [class.sev2]="alert.severity === 'Sev-2'" [class.sev3]="alert.severity === 'Sev-3'">
+                {{ alert.severity }}
+              </div>
+              <div class="alert-details">
+                <strong>{{ alert.eventType }}</strong>
+                <p>Vehicle: <code>{{ alert.cabReg }}</code> | Status: <span class="tag-status">{{ alert.stateText }}</span></p>
+                <p class="action-note">{{ alert.resolutionDetails }}</p>
+                <small>{{ alert.timestamp }}</small>
+              </div>
+            </div>
+          </div>
+          <ng-template #noSafetyAlerts>
+            <div class="empty-state success-text">
+              ✔ 100% Incident-free commute recorded for {{ dashboardData.profile.employeeName }} in {{ selectedMonth }}.
+            </div>
+          </ng-template>
+        </div>
+
+        <!-- EMERGENCY SOS TRIGGER SIMULATOR -->
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Instant SOS Panic Trigger</h2>
+            <span>Emergency Dispatch</span>
+          </div>
+
+          <div class="sos-action-box">
+            <p class="sos-desc">
+              Triggering this button instantly alerts the 24/7 MoveInSync Command Center, streams live GPS telemetry coordinates, and delivers an urgent SMS to your reporting manager (<strong>{{ dashboardData.profile.managerName }}</strong>).
+            </p>
+
+            <button type="button" class="action-btn-danger large-btn" (click)="triggerSos()" [disabled]="sosTriggering">
+              {{ sosTriggering ? 'Broadcasting Emergency Alert...' : '🚨 TRIGGER EMERGENCY SOS NOW' }}
+            </button>
+
+            <div class="quick-contacts">
+              <div class="contact-card">
+                <span>Security Desk</span>
+                <strong>+91-80-4911-0000</strong>
+              </div>
+              <div class="contact-card">
+                <span>Manager Hotline</span>
+                <strong>{{ dashboardData.profile.managerName }}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </ng-container>
+
+    <!-- TAB 4: RATE COMMUTE & CSAT -->
+    <ng-container *ngIf="activeTab === 'feedback' && dashboardData">
+      <section class="hero-card">
+        <div>
+          <p class="eyebrow">RIDER EXPERIENCE • {{ dashboardData.profile.employeeName | uppercase }}</p>
+          <h1>Rate Your Commute & Trip Experience</h1>
+          <p class="hero-description">
+            Your ratings directly determine vendor SLA compliance, driver incentives, and vehicle quality standards across {{ dashboardData.profile.companyName }}.
+          </p>
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <!-- SUBMIT FEEDBACK FORM -->
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Rate Your Recent Trip</h2>
+            <span>Trip CSAT Scorecard</span>
+          </div>
+
+          <div class="feedback-form">
+            <div class="form-group">
+              <label>Select Trip to Review:</label>
+              <select [(ngModel)]="feedbackTripId" class="filter-select full-select">
+                <option *ngIf="dashboardData.liveTrip" [value]="dashboardData.liveTrip.tripId">
+                  {{ dashboardData.liveTrip.tripId }} — Today ({{ dashboardData.liveTrip.shiftType }})
+                </option>
+                <option *ngFor="let t of dashboardData.tripHistory" [value]="t.tripId">
+                  {{ t.tripId }} — {{ t.tripDate }} ({{ t.shiftType }})
+                </option>
+              </select>
+            </div>
+
+            <!-- STAR RATINGS -->
+            <div class="rating-row">
+              <span>Driver Courtesy:</span>
+              <div class="stars">
+                <button type="button" *ngFor="let s of [1,2,3,4,5]" (click)="feedbackDriverRating = s" [class.filled]="s <= feedbackDriverRating">★</button>
+              </div>
+            </div>
+
+            <div class="rating-row">
+              <span>Cab Cleanliness & AC:</span>
+              <div class="stars">
+                <button type="button" *ngFor="let s of [1,2,3,4,5]" (click)="feedbackCabRating = s" [class.filled]="s <= feedbackCabRating">★</button>
+              </div>
+            </div>
+
+            <div class="rating-row">
+              <span>Route Punctuality:</span>
+              <div class="stars">
+                <button type="button" *ngFor="let s of [1,2,3,4,5]" (click)="feedbackRouteRating = s" [class.filled]="s <= feedbackRouteRating">★</button>
+              </div>
+            </div>
+
+            <div class="rating-row">
+              <span>Safety & Comfort:</span>
+              <div class="stars">
+                <button type="button" *ngFor="let s of [1,2,3,4,5]" (click)="feedbackSafetyRating = s" [class.filled]="s <= feedbackSafetyRating">★</button>
+              </div>
+            </div>
+
+            <div class="rating-row">
+              <span>Security Marshal Escort:</span>
+              <div class="stars">
+                <button type="button" *ngFor="let s of [1,2,3,4,5]" (click)="feedbackMarshalRating = s" [class.filled]="s <= feedbackMarshalRating">★</button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Comments / Commute Observations:</label>
+              <textarea class="claim-textarea" [(ngModel)]="feedbackComment" placeholder="Provide any details regarding cab hygiene, driver courtesy, detour, or punctuality..."></textarea>
+            </div>
+
+            <button type="button" class="action-btn-primary" (click)="submitRating()" [disabled]="submittingFeedback">
+              {{ submittingFeedback ? 'Submitting CSAT Review...' : 'Submit Verified Trip Rating' }}
+            </button>
+
+            <div *ngIf="feedbackSuccessMsg" class="success-alert-box">
+              {{ feedbackSuccessMsg }}
+            </div>
+          </div>
+        </div>
+
+        <!-- MY PREVIOUS RATINGS HISTORY -->
+        <div class="panel">
+          <div class="panel-header">
+            <h2>My Feedback History</h2>
+            <span>{{ dashboardData.feedbackHistory.length }} Verified Review(s)</span>
+          </div>
+
+          <div class="feedback-list">
+            <div *ngFor="let fb of dashboardData.feedbackHistory" class="feedback-card">
+              <div class="feedback-header">
+                <strong>{{ fb.tripId }}</strong>
+                <span class="gold-text">★ {{ fb.overallRating }} / 5.0</span>
+              </div>
+              <p class="comment-text">"{{ fb.comments }}"</p>
+              <div class="rating-mini-pills">
+                <span>Driver: ★{{ fb.driverRating }}</span>
+                <span>Cab: ★{{ fb.cabRating }}</span>
+                <span>Route: ★{{ fb.routeRating }}</span>
+                <span>Safety: ★{{ fb.safetyRating }}</span>
+                <span>Marshal: ★{{ fb.marshalRating }}</span>
+              </div>
+              <small class="code-id">{{ fb.tripDate }}</small>
+            </div>
+          </div>
+        </div>
+      </section>
+    </ng-container>
+
+    <!-- TAB 5: AGENTIC AI COMMUTE COPILOT -->
+    <ng-container *ngIf="activeTab === 'copilot' && dashboardData">
+      <section class="hero-card">
+        <div>
+          <p class="eyebrow">AGENTIC ASSISTANT • {{ dashboardData.profile.employeeName | uppercase }}</p>
+          <h1>MoveInSync AI Commute Copilot</h1>
+          <p class="hero-description">
+            Your personal mobility assistant. Proactively tracks traffic, manages shift cab changes, confirms night escorts, and protects your shift readiness SLA.
+          </p>
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <!-- CHAT FEED -->
+        <div class="panel full-width">
+          <div class="panel-header">
+            <h2>Interactive Commute Copilot</h2>
+            <span>Natural Language Assistance</span>
+          </div>
+
+          <div class="copilot-feed">
+            <div *ngFor="let msg of copilotHistory" class="chat-bubble" [class.user-bubble]="msg.sender === 'user'" [class.ai-bubble]="msg.sender === 'ai'">
+              <div class="sender-tag">{{ msg.sender === 'user' ? dashboardData.profile.employeeName : 'MoveInSync AI Copilot' }} • {{ msg.time }}</div>
+              <p class="msg-body">{{ msg.message }}</p>
+
+              <div *ngIf="msg.actions && msg.actions.length > 0" class="actions-box">
+                <small>Autonomous Actions Executed:</small>
+                <ul>
+                  <li *ngFor="let a of msg.actions">✓ {{ a }}</li>
+                </ul>
+              </div>
+            </div>
+
+            <div *ngIf="isCopilotThinking" class="loading-box">
+              <div class="spinner"></div>
+              <p>Analyzing telemetry and coordinating with transport engine...</p>
+            </div>
+          </div>
+
+          <!-- QUICK PROMPTS -->
+          <div class="quick-chips">
+            <span class="chip-label">Quick Prompts:</span>
+            <button type="button" *ngFor="let q of quickPrompts" class="chip-btn" (click)="sendCopilotQuery(q)">
+              {{ q }}
+            </button>
+          </div>
+
+          <!-- INPUT BOX -->
+          <div class="chat-input-bar">
+            <input 
+              type="text" 
+              [(ngModel)]="copilotQuery" 
+              (keyup.enter)="sendCopilotQuery()" 
+              placeholder="Ask anything about your commute, driver ETA, night escorts, or shift delay..." 
+              class="chat-input" />
+            <button type="button" class="chat-send-btn" (click)="sendCopilotQuery()" [disabled]="isCopilotThinking || !copilotQuery.trim()">
+              Send
+            </button>
+          </div>
+        </div>
+      </section>
+    </ng-container>
+  </main>
+</div>

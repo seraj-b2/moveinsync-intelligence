@@ -18,9 +18,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import com.moveinsync.intelligence.entity.*;
-import com.moveinsync.intelligence.repository.*;
-
 @Service
 public class VendorService {
 
@@ -30,18 +27,6 @@ public class VendorService {
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
-
-    private final VendorDisputeRepository disputeRepository;
-    private final BillingDiscrepancyRepository billingRepository;
-    private final ComplianceAlertRepository alertRepository;
-
-    public VendorService(VendorDisputeRepository disputeRepository,
-                         BillingDiscrepancyRepository billingRepository,
-                         ComplianceAlertRepository alertRepository) {
-        this.disputeRepository = disputeRepository;
-        this.billingRepository = billingRepository;
-        this.alertRepository = alertRepository;
-    }
 
     public List<String> getBusinessUnits() {
         return List.of("All Business Units", "vanta-Aus", "catalyst-Sac", "orbit-Slc", "vanta-Sea", "pinnacle-Slc");
@@ -434,76 +419,5 @@ public class VendorService {
                     "Vehicle breakdown and delayed backup replacement is vendor maintenance responsibility under section 4.2 of contract."
             );
         }
-    }
-
-    public VendorDisputeItem submitDispute(VendorDisputeItem item) {
-        if (item.getDisputeId() == null || item.getDisputeId().isBlank()) {
-            item.setDisputeId("DSP-" + (1000 + (int) (Math.random() * 9000)));
-        }
-        if (item.getStatus() == null || item.getStatus().isBlank()) {
-            item.setStatus("PENDING_REVIEW");
-        }
-        if (item.getSubmittedAt() == null || item.getSubmittedAt().isBlank()) {
-            item.setSubmittedAt("Today");
-        }
-
-        VendorDisputeEntity entity = new VendorDisputeEntity(
-                item.getDisputeId(),
-                item.getVendorName(),
-                item.getRoute(),
-                item.getClaimSubject(),
-                item.getClaimText(),
-                item.getMonth() != null ? item.getMonth() : "July 2026",
-                item.getBusinessUnit() != null ? item.getBusinessUnit() : "All Business Units",
-                item.getAffectedCabs(),
-                item.getStatus(),
-                item.getSubmittedAt()
-        );
-        disputeRepository.save(entity);
-        return item;
-    }
-
-    public VendorDisputeItem updateDisputeStatus(String disputeId, String newStatus) {
-        if (disputeId == null || disputeId.isBlank()) return null;
-        String resolvedStatus = (newStatus != null && !newStatus.isBlank()) ? newStatus.toUpperCase() : "PENDING_REVIEW";
-
-        Optional<VendorDisputeEntity> opt = disputeRepository.findById(disputeId);
-        if (opt.isPresent()) {
-            VendorDisputeEntity entity = opt.get();
-            entity.setStatus(resolvedStatus);
-            disputeRepository.save(entity);
-            return new VendorDisputeItem(
-                    entity.getDisputeId(), entity.getVendorName(), entity.getRoute(),
-                    entity.getClaimSubject(), entity.getClaimText(), entity.getMonth(),
-                    entity.getBusinessUnit(), entity.getAffectedCabs(), entity.getStatus(), entity.getSubmittedAt()
-            );
-        }
-        return new VendorDisputeItem(disputeId, "Vendor", "Route", "Claim", "Claim Details", "July 2026", "All", 1, resolvedStatus, "Today");
-    }
-
-    public List<VendorDisputeItem> getVendorDisputes(String month, String businessUnit, String vendorName, String status) {
-        List<VendorDisputeEntity> entities;
-        boolean hasVendor = (vendorName != null && !vendorName.isBlank() && !vendorName.contains("All"));
-        boolean hasStatus = (status != null && !status.isBlank() && !status.equalsIgnoreCase("ALL"));
-
-        if (hasVendor && hasStatus) {
-            entities = disputeRepository.findByVendorNameIgnoreCaseAndStatusIgnoreCase(vendorName, status);
-        } else if (hasVendor) {
-            entities = disputeRepository.findByVendorNameIgnoreCase(vendorName);
-        } else if (hasStatus) {
-            entities = disputeRepository.findByStatusIgnoreCase(status);
-        } else {
-            entities = disputeRepository.findAll();
-        }
-
-        return entities.stream().map(e -> new VendorDisputeItem(
-                e.getDisputeId(), e.getVendorName(), e.getRoute(), e.getClaimSubject(),
-                e.getClaimText(), e.getMonth(), e.getBusinessUnit(), e.getAffectedCabs(),
-                e.getStatus(), e.getSubmittedAt()
-        )).toList();
-    }
-
-    public List<VendorDisputeItem> getVendorDisputes(String month, String businessUnit, String vendorName) {
-        return getVendorDisputes(month, businessUnit, vendorName, null);
     }
 }

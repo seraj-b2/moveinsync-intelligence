@@ -1,0 +1,175 @@
+<div class="login-shell">
+  <!-- BACKGROUND AMBIENT GLOW -->
+  <div class="glow-orb orb-top"></div>
+  <div class="glow-orb orb-bottom"></div>
+
+  <!-- MAIN LOGIN CONTAINER -->
+  <div class="login-container">
+    
+    <!-- BRAND & HEADER -->
+    <div class="login-header">
+      <div class="brand-badge">
+        <span class="pulse-dot"></span> MOVEINSYNC MOBILITY INTELLIGENCE
+      </div>
+      <h1 class="brand-title">MoveInSync</h1>
+      <p class="brand-subtitle">
+        Enterprise Commute & Shift Readiness Command Platform
+      </p>
+    </div>
+
+    <!-- ROLE SWITCHER TABS -->
+    <div class="role-tabs">
+      <button 
+        type="button" 
+        class="role-tab" 
+        [class.active]="activeRole === 'employee'" 
+        (click)="setRole('employee')">
+        <span class="tab-icon">👤</span>
+        <div class="tab-text">
+          <strong>Employee Portal</strong>
+          <small>Rider Telemetry & Digital Pass</small>
+        </div>
+      </button>
+
+      <button 
+        type="button" 
+        class="role-tab" 
+        [class.active]="activeRole === 'manager'" 
+        (click)="setRole('manager')">
+        <span class="tab-icon">👥</span>
+        <div class="tab-text">
+          <strong>Manager Portal</strong>
+          <small>Shift Readiness & Team Roster</small>
+        </div>
+      </button>
+    </div>
+
+    <!-- LOGIN CARD -->
+    <div class="login-card">
+      <div class="card-header-badge">
+        <span class="badge-tag">
+          {{ activeRole === 'employee' ? 'RIDER AUTHENTICATION' : 'SUPERVISORY DISPATCH ACCESS' }}
+        </span>
+        <span class="badge-status">● SSO GATEWAY READY</span>
+      </div>
+
+      <form (ngSubmit)="login()" class="login-form">
+        <!-- COMPANY SELECT -->
+        <div class="form-group">
+          <label for="companyInput">Organization / Company Domain</label>
+          <div class="input-wrap">
+            <span class="input-icon">🏢</span>
+            <input 
+              id="companyInput" 
+              type="text" 
+              [(ngModel)]="companyName" 
+              name="companyName" 
+              placeholder="e.g. catalyst-Sac" 
+              required />
+          </div>
+        </div>
+
+        <!-- EMPLOYEE ID INPUT (IF EMPLOYEE) -->
+        <div class="form-group" *ngIf="activeRole === 'employee'">
+          <label for="employeeIdInput">Employee STW ID</label>
+          <div class="input-wrap">
+            <span class="input-icon">🆔</span>
+            <input 
+              id="employeeIdInput" 
+              type="text" 
+              [(ngModel)]="employeeId" 
+              name="employeeId" 
+              placeholder="e.g. STW-484475" 
+              required />
+          </div>
+        </div>
+
+        <!-- MANAGER ID INPUT (IF MANAGER) -->
+        <div class="form-group" *ngIf="activeRole === 'manager'">
+          <label for="managerIdInput">Manager Identifier (ID)</label>
+          <div class="input-wrap">
+            <span class="input-icon">👔</span>
+            <input 
+              id="managerIdInput" 
+              type="text" 
+              [(ngModel)]="managerId" 
+              name="managerId" 
+              placeholder="e.g. MGR-103, MGR-101" 
+              required />
+          </div>
+        </div>
+
+        <!-- PASSCODE / PIN INPUT -->
+        <div class="form-group">
+          <div class="label-row">
+            <label for="passInput">
+              {{ activeRole === 'employee' ? 'Mobility Security PIN' : 'Manager Authorization Key' }}
+            </label>
+            <span class="preset-hint">Mock: any key</span>
+          </div>
+          <div class="input-wrap">
+            <span class="input-icon">🔒</span>
+            <input 
+              id="passInput" 
+              [type]="showPassword ? 'text' : 'password'" 
+              [(ngModel)]="employeePin" 
+              name="pin" 
+              placeholder="••••••••" 
+              required />
+            <button 
+              type="button" 
+              class="eye-toggle" 
+              (click)="showPassword = !showPassword">
+              {{ showPassword ? '👁️' : '👁️‍🗨️' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- ERROR ALERT (IF ANY) -->
+        <div *ngIf="errorMessage" class="error-banner">
+          ⚠️ {{ errorMessage }}
+        </div>
+
+        <!-- REMEMBER ME & EXTRA -->
+        <div class="options-row">
+          <label class="remember-label">
+            <input type="checkbox" [(ngModel)]="rememberMe" name="rememberMe" />
+            <span>Keep session active</span>
+          </label>
+          <span class="secure-tag">🛡️ 256-Bit TLS</span>
+        </div>
+
+        <!-- SUBMIT BUTTON -->
+        <button 
+          type="submit" 
+          class="login-btn" 
+          [class.manager-btn]="activeRole === 'manager'"
+          [disabled]="isAuthenticating">
+          <span *ngIf="!isAuthenticating">
+            Sign In to {{ activeRole === 'employee' ? 'Employee Commute Center' : 'Manager Roster Dashboard' }} →
+          </span>
+          <span *ngIf="isAuthenticating" class="authenticating-content">
+            <span class="spinner"></span> Connecting to MoveInSync Gateway...
+          </span>
+        </button>
+      </form>
+    </div>
+
+    <!-- FOOTER NAV & SECURITY BADGES -->
+    <div class="login-footer">
+      <div class="footer-links">
+        <span>Looking for Transport Operations?</span>
+        <a routerLink="/vendors" class="vendor-link">
+          🚚 Access Vendor & Billing Audit Portal ↗
+        </a>
+      </div>
+
+      <div class="compliance-badges">
+        <span class="badge-item">🔒 SOC 2 Type II Certified</span>
+        <span class="badge-item">🛡️ 100% Female Escort Protocol</span>
+        <span class="badge-item">📞 24/7 Desk: +91-80-4911-0000</span>
+      </div>
+    </div>
+
+  </div>
+</div>

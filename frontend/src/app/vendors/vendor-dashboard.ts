@@ -6,19 +6,19 @@ import {
 } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 
 import {
   ApiService,
   ClaimEvaluationResponse,
   SlaShieldResponse,
-  VendorDisputeItem,
   VendorScorecard
 } from '../services/api.service';
 
 @Component({
   selector: 'app-vendor-dashboard',
   standalone: true,
-  imports: [CommonModule, DecimalPipe, FormsModule],
+  imports: [CommonModule, DecimalPipe, FormsModule, RouterModule],
   templateUrl: './vendor-dashboard.html',
   styleUrl: './vendor-dashboard.scss'
 })
@@ -45,14 +45,8 @@ export class VendorDashboardComponent implements OnInit {
   runningShieldAudit = false;
   shieldError: string | null = null;
 
-  // Pending Vendor Disputes state
-  pendingDisputes: VendorDisputeItem[] = [];
-  selectedDispute: VendorDisputeItem | null = null;
-  loadingDisputes = false;
-  disputeError: string | null = null;
-
   // AI Claim Dispute Assistant state
-  emailClaimText = '';
+  emailClaimText = 'Subject: SLA Penalty Dispute - July 10 Rainstorm\nVendor: Rohan Mikhailov Travel\nClaim: Severe rain on July 10th delayed 15 cabs on Route 4. Please waive the SLA penalty.';
   claimEvaluationResult: ClaimEvaluationResponse | null = null;
   evaluatingClaim = false;
   claimError: string | null = null;
@@ -60,7 +54,6 @@ export class VendorDashboardComponent implements OnInit {
   ngOnInit(): void {
     this.loadFilterOptions();
     this.loadVendorScorecards();
-    this.loadPendingDisputes();
   }
 
   loadFilterOptions(): void {
@@ -112,43 +105,6 @@ export class VendorDashboardComponent implements OnInit {
 
   onFilterChange(): void {
     this.loadVendorScorecards();
-    this.loadPendingDisputes();
-  }
-
-  loadPendingDisputes(): void {
-    this.loadingDisputes = true;
-    this.disputeError = null;
-    this.apiService.getVendorDisputes(undefined, undefined, undefined, 'PENDING_REVIEW').subscribe({
-      next: (data: VendorDisputeItem[]) => {
-        this.pendingDisputes = data || [];
-        this.loadingDisputes = false;
-        this.disputeError = null;
-        if (this.pendingDisputes.length > 0) {
-          if (!this.selectedDispute || !this.pendingDisputes.some(d => d.disputeId === this.selectedDispute?.disputeId)) {
-            this.selectPendingDispute(this.pendingDisputes[0]);
-          }
-        } else {
-          this.selectedDispute = null;
-          this.emailClaimText = '';
-        }
-        this.changeDetectorRef.detectChanges();
-      },
-      error: (err) => {
-        this.pendingDisputes = [];
-        this.loadingDisputes = false;
-        this.disputeError = '⚠️ Unable to fetch pending vendor disputes from backend.';
-        this.changeDetectorRef.detectChanges();
-      }
-    });
-  }
-
-  selectPendingDispute(dispute: VendorDisputeItem): void {
-    this.selectedDispute = dispute;
-    this.emailClaimText = dispute.claimText;
-    this.claimEvaluationResult = null;
-    this.claimError = null;
-    this.actionConfirmedMessage = null;
-    this.changeDetectorRef.detectChanges();
   }
 
   selectVendor(vendor: VendorScorecard): void {
@@ -204,82 +160,14 @@ export class VendorDashboardComponent implements OnInit {
     } else if (type === 'breakdown') {
       this.emailClaimText = 'Subject: Penalty Waiver Appeal - Cab Engine Breakdown\nVendor: Sanjay Mikhailov Travel\nClaim: Cab KA-03-MK-9910 had engine failure. Requesting SLA penalty waiver for delayed replacement.';
     }
-    this.selectedDispute = null;
     this.claimEvaluationResult = null;
     this.claimError = null;
-  }
-
-  get filteredEvaluatedClaims() {
-    return this.recentEvaluatedClaims;
-  }
-
-  recentEvaluatedClaims = [
-    {
-      claimId: 'CLM-9041',
-      vendorName: 'Rohan Mikhailov Travel',
-      route: 'Route 4',
-      reason: 'Monsoon Heavy Rainstorm - Approved Waiver',
-      status: 'APPROVED',
-      date: 'July 2026'
-    },
-    {
-      claimId: 'CLM-8812',
-      vendorName: 'Sanjay Mikhailov Travel',
-      route: 'Route 12',
-      reason: 'Vehicle Maintenance Alert - Fault Confirmed',
-      status: 'REJECTED',
-      date: 'July 2026'
-    }
-  ];
-  actionConfirmedMessage: string | null = null;
-
-  confirmWaiverAction(status: 'APPROVED' | 'REJECTED'): void {
-    if (!this.claimEvaluationResult) return;
-    const currentDispute = this.selectedDispute;
-    const disputeId = currentDispute ? currentDispute.disputeId : `CLM-${Math.floor(1000 + Math.random() * 9000)}`;
-    const vendorName = currentDispute ? currentDispute.vendorName : (this.claimEvaluationResult.vendorName || 'Vendor');
-    const route = currentDispute ? currentDispute.route : (this.claimEvaluationResult.route || 'Route');
-
-    if (currentDispute) {
-      this.apiService.updateDisputeStatus(currentDispute.disputeId, status).subscribe({
-        next: () => {},
-        error: () => {}
-      });
-    }
-
-    this.recentEvaluatedClaims.unshift({
-      claimId: disputeId,
-      vendorName: vendorName,
-      route: route,
-      reason: this.claimEvaluationResult.recommendation,
-      status: status,
-      date: this.selectedMonth
-    });
-
-    if (currentDispute) {
-      this.pendingDisputes = this.pendingDisputes.filter(d => d.disputeId !== currentDispute.disputeId);
-      if (this.pendingDisputes.length > 0) {
-        this.selectPendingDispute(this.pendingDisputes[0]);
-      } else {
-        this.selectedDispute = null;
-        this.emailClaimText = '';
-        this.claimEvaluationResult = null;
-      }
-    }
-
-    this.actionConfirmedMessage = `Decision recorded: Dispute ${disputeId} for ${vendorName} ${status === 'APPROVED' ? 'Waived & Approved' : 'Rejected'}!`;
-    this.changeDetectorRef.detectChanges();
-    setTimeout(() => {
-      this.actionConfirmedMessage = null;
-      this.changeDetectorRef.detectChanges();
-    }, 4000);
   }
 
   evaluateEmailClaim(): void {
     this.evaluatingClaim = true;
     this.claimEvaluationResult = null;
     this.claimError = null;
-    this.actionConfirmedMessage = null;
     this.changeDetectorRef.detectChanges();
 
     this.apiService.evaluateVendorClaim(this.emailClaimText, this.selectedMonth).subscribe({

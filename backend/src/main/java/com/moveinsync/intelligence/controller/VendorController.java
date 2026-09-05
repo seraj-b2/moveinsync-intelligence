@@ -48,31 +48,4 @@ public class VendorController {
     public SlaShieldResponse analyzeSlaShield(@RequestBody SlaShieldRequest request) {
         return vendorService.analyzeSlaShield(request);
     }
-
-    @GetMapping("/disputes")
-    public List<com.moveinsync.intelligence.dto.VendorDisputeItem> getVendorDisputes(
-            @RequestParam(required = false) String month,
-            @RequestParam(required = false) String businessUnit,
-            @RequestParam(required = false) String vendorName,
-            @RequestParam(required = false) String status
-    ) {
-        return vendorService.getVendorDisputes(month, businessUnit, vendorName, status);
-    }
-
-    @CrossOrigin(origins = "*")
-    @PostMapping("/disputes")
-    public com.moveinsync.intelligence.dto.VendorDisputeItem submitVendorDispute(
-            @RequestBody com.moveinsync.intelligence.dto.VendorDisputeItem dispute
-    ) {
-        return vendorService.submitDispute(dispute);
-    }
-
-    @CrossOrigin(origins = "*")
-    @RequestMapping(value = "/disputes/{disputeId}/status", method = {RequestMethod.PUT, RequestMethod.POST})
-    public com.moveinsync.intelligence.dto.VendorDisputeItem updateDisputeStatus(
-            @PathVariable String disputeId,
-            @RequestParam String status
-    ) {
-        return vendorService.updateDisputeStatus(disputeId, status);
-    }
 }
