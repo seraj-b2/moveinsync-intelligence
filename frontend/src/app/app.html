@@ -1,154 +1,296 @@
-<!-- <div style="background: yellow; color: black; padding: 20px;">
-  API TEST:
-  {{ dashboard.totalTrips }}
-  |
-  {{ dashboard.activeVehicles }}
-  |
-  {{ backendStatus }}
-</div> -->
 <div class="page-shell">
   <header class="topbar">
-    <div>
+    <div class="brand-block">
       <div class="brand">MoveInSync</div>
-      <div class="subtitle">Mobility Intelligence Platform</div>
+      <div class="subtitle">Vendor Operations & Agentic Intelligence Platform</div>
     </div>
+
+    <nav class="nav-tabs">
+      <button 
+        type="button" 
+        [class.active]="activeTab === 'vendors'" 
+        (click)="activeTab = 'vendors'">
+        Vendor Intelligence
+      </button>
+      <button 
+        type="button" 
+        [class.active]="activeTab === 'disputes'" 
+        (click)="activeTab = 'disputes'">
+        AI Claim Assistant
+      </button>
+      <button 
+        type="button" 
+        [class.active]="activeTab === 'overview'" 
+        (click)="activeTab = 'overview'">
+        System Metrics
+      </button>
+    </nav>
 
     <div class="environment">
       <span class="status-dot"></span>
-      Local Development
+      API: {{ backendStatus }}
     </div>
   </header>
 
   <main class="dashboard">
-    <section class="hero-card">
-      <div>
-        <p class="eyebrow">INTELLIGENCE COMMAND CENTER</p>
-        <h1>MoveInSync Intelligence</h1>
-        <p class="hero-description">
-          A unified platform for mobility analytics, operational insights,
-          document processing, and intelligent decision-making.
-        </p>
-      </div>
-
-      <div class="hero-badge">
-        <span>AI</span>
-        Intelligence Ready
-      </div>
-    </section>
-
-    <section class="metrics-grid">
-      <div class="metric-card">
-        <div class="metric-label">Total Trips</div>
-        <div class="metric-value">
-          {{ dashboard.totalTrips }}
+    <!-- VENDOR INTELLIGENCE TAB -->
+    <ng-container *ngIf="activeTab === 'vendors'">
+      <section class="hero-card">
+        <div>
+          <p class="eyebrow">ENTERPRISE MOBILITY VENDOR MANAGEMENT</p>
+          <h1>Vendor Performance & Audit Command Center</h1>
+          <p class="hero-description">
+            Monitor vendor SLA benchmarks, delay attribution (Vendor vs Employee fault), 
+            pre-audit invoices, and enforce cab/driver safety compliance.
+          </p>
         </div>
-        <div class="metric-caption">Trips processed today</div>
-      </div>
-
-      <div class="metric-card">
-        <div class="metric-label">Active Vehicles</div>
-        <div class="metric-value">
-          {{ dashboard.activeVehicles }}
+        <div class="hero-badge">
+          <span>AI</span>
+          Vendor Agent Active
         </div>
-        <div class="metric-caption">Vehicles currently active</div>
-      </div>
+      </section>
 
-      <div class="metric-card">
-        <div class="metric-label">On-Time Performance</div>
-        <div class="metric-value success">
-          {{ dashboard.onTimePercentage }}%
+      <!-- VENDOR SELECTOR ROW -->
+      <section class="vendor-selector-grid">
+        <div 
+          *ngFor="let vendor of vendors" 
+          class="vendor-card"
+          [class.selected]="selectedVendor?.vendorName === vendor.vendorName"
+          (click)="selectVendor(vendor)">
+          <div class="vendor-card-header">
+            <h3>{{ vendor.vendorName }}</h3>
+            <span class="badge" [class.success]="vendor.onTimeArrivalPercentage >= vendor.slaTargetPercentage" [class.danger]="vendor.onTimeArrivalPercentage < vendor.slaTargetPercentage">
+              OTA: {{ vendor.onTimeArrivalPercentage }}%
+            </span>
+          </div>
+          <div class="vendor-mini-stats">
+            <div>
+              <span>Compliance</span>
+              <strong>{{ vendor.complianceRatePercentage }}%</strong>
+            </div>
+            <div>
+              <span>Bill Accuracy</span>
+              <strong>{{ vendor.billingAccuracyPercentage }}%</strong>
+            </div>
+            <div>
+              <span>Rating</span>
+              <strong>★ {{ vendor.averageDriverRating }}</strong>
+            </div>
+          </div>
         </div>
-        <div class="metric-caption">Successful on-time trips</div>
-      </div>
+      </section>
 
-      <div class="metric-card">
-        <div class="metric-label">Delayed Trips</div>
-        <div class="metric-value danger">
-          {{ dashboard.delayedTrips }}
+      <!-- DETAILED VENDOR ANALYTICS -->
+      <section *ngIf="selectedVendor" class="content-grid">
+        <!-- SLA & DELAY ATTRIBUTION PANEL -->
+        <div class="panel">
+          <div class="panel-header">
+            <h2>SLA & Delay Attribution Breakdown</h2>
+            <span>Target SLA: {{ selectedVendor.slaTargetPercentage }}%</span>
+          </div>
+          <div class="metric-summary-row">
+            <div class="stat-box">
+              <span>Total Trips</span>
+              <strong>{{ selectedVendor.totalTrips | number }}</strong>
+            </div>
+            <div class="stat-box danger">
+              <span>Vendor-Fault Delays</span>
+              <strong>{{ selectedVendor.slaBreakdown[0]?.vendorFaultDelays | number }}</strong>
+              <small>Driver started late</small>
+            </div>
+            <div class="stat-box warning">
+              <span>Employee-Fault Delays</span>
+              <strong>{{ selectedVendor.slaBreakdown[0]?.employeeFaultDelays | number }}</strong>
+              <small>Boarded >10m late</small>
+            </div>
+            <div class="stat-box info">
+              <span>Traffic / Weather</span>
+              <strong>{{ selectedVendor.slaBreakdown[0]?.trafficWeatherDelays | number }}</strong>
+              <small>External events</small>
+            </div>
+          </div>
+
+          <div class="attribution-bar-container">
+            <h4>Delay Responsibility Split for {{ selectedVendor.vendorName }}</h4>
+            <div class="attribution-progress">
+              <div class="bar vendor-bar" style="width: 55%" title="Vendor Fault: 55%">Vendor Fault (55%)</div>
+              <div class="bar emp-bar" style="width: 25%" title="Employee Late: 25%">Employee Late (25%)</div>
+              <div class="bar traffic-bar" style="width: 20%" title="Traffic: 20%">Traffic (20%)</div>
+            </div>
+          </div>
         </div>
-        <div class="metric-caption">Trips requiring attention</div>
-      </div>
-    </section>
 
-    <section class="content-grid">
-      <div class="panel">
+        <!-- COMPLIANCE & SAFETY RADAR -->
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Compliance & Safety Alerts</h2>
+            <span class="danger-text">{{ selectedVendor.nonCompliantTrips }} Alerts Flagged</span>
+          </div>
+
+          <div class="alert-list" *ngIf="selectedVendor.complianceAlerts.length > 0; else noAlerts">
+            <div *ngFor="let alert of selectedVendor.complianceAlerts" class="alert-item">
+              <div class="alert-severity" [class.sev1]="alert.severity === 'Sev-1'" [class.sev2]="alert.severity === 'Sev-2'">
+                {{ alert.severity }}
+              </div>
+              <div class="alert-details">
+                <strong>{{ alert.alertType }}</strong>
+                <p>Cab: <code>{{ alert.vehicleReg }}</code> | Driver: {{ alert.driverName }}</p>
+                <small>{{ alert.timestamp }}</small>
+              </div>
+            </div>
+          </div>
+          <ng-template #noAlerts>
+            <div class="empty-state success-text">
+              ✔ Zero safety or compliance violations recorded for this vendor.
+            </div>
+          </ng-template>
+        </div>
+      </section>
+
+      <!-- BILLING AUDIT DISCREPANCY TABLE -->
+      <section *ngIf="selectedVendor" class="panel full-width">
         <div class="panel-header">
-          <h2>Operational Overview</h2>
-          <span>Live API data</span>
-            <button type="button" class="refresh-button" (click)="refreshDashboard()">
-              Refresh Data
-            </button>
+          <h2>Pre-Audit Invoicing & Billing Discrepancies</h2>
+          <span>Flagged Items: {{ selectedVendor.billingDiscrepanciesCount }}</span>
         </div>
 
-        <div class="module-list">
-          <div class="module-item">
-            <div class="module-icon">01</div>
-            <div>
-              <h3>Employees Transported</h3>
-              <p>
-                {{ dashboard.employeesTransported }}
-                employees transported through the mobility network.
-              </p>
-            </div>
+        <table class="data-table" *ngIf="selectedVendor.billingDiscrepancies.length > 0; else noBilling">
+          <thead>
+            <tr>
+              <th>Trip ID</th>
+              <th>Billed Km</th>
+              <th>GPS Tracked Km</th>
+              <th>Billed Cost</th>
+              <th>Audit Expected</th>
+              <th>Status</th>
+              <th>Discrepancy Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of selectedVendor.billingDiscrepancies">
+              <td><code>#{{ item.tripId }}</code></td>
+              <td>{{ item.billedKm }} km</td>
+              <td>{{ item.gpsActualKm }} km</td>
+              <td>\${{ item.billedCost | number:'1.2-2' }}</td>
+              <td>\${{ item.auditExpectedCost | number:'1.2-2' }}</td>
+              <td>
+                <span class="status-pill" [class.flagged]="item.status === 'FLAGGED'" [class.verified]="item.status === 'VERIFIED'">
+                  {{ item.status }}
+                </span>
+              </td>
+              <td class="reason-cell">{{ item.discrepancyReason }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <ng-template #noBilling>
+          <div class="empty-state success-text">
+            ✔ All invoice line items match GPS actual distance logs within SLA parameters.
+          </div>
+        </ng-template>
+      </section>
+    </ng-container>
+
+    <!-- AI CLAIM DISPUTE ASSISTANT TAB -->
+    <ng-container *ngIf="activeTab === 'disputes'">
+      <section class="hero-card">
+        <div>
+          <p class="eyebrow">AGENTIC DISPUTE RESOLUTION</p>
+          <h1>Multi-Source AI Dispute Claim Resolver</h1>
+          <p class="hero-description">
+            Ingest vendor email claims, parse delay assertions, and automatically cross-reference 
+            against trip logs, GPS traces, and peer vendor data for instant, evidence-backed decisions.
+          </p>
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Ingest Vendor Email / Claim</h2>
+            <span>Unstructured Input</span>
           </div>
 
-          <div class="module-item">
-            <div class="module-icon">02</div>
-            <div>
-              <h3>Route Utilization</h3>
-              <p>
-                Current route utilization is
-                {{ dashboard.routeUtilization }}%.
-              </p>
-            </div>
+          <textarea class="claim-textarea" [(ngModel)]="emailClaimText" rows="6"></textarea>
+
+          <button type="button" class="action-btn" (click)="evaluateEmailClaim()" [disabled]="evaluatingClaim">
+            {{ evaluatingClaim ? 'Evaluating Evidence...' : 'Run AI Cross-Verification' }}
+          </button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>AI Evidence & Recommendation Report</h2>
+            <span>Automated Audit Result</span>
           </div>
 
-          <div class="module-item">
-            <div class="module-icon">03</div>
-            <div>
-              <h3>Delayed Trips</h3>
-              <p>
-                {{ dashboard.delayedTrips }}
-                trips are currently marked for operational review.
-              </p>
+          <div *ngIf="evaluatingClaim" class="loading-box">
+            <div class="spinner"></div>
+            <p>Analyzing GPS speed logs, weather records & peer vendor trips on Route 4...</p>
+          </div>
+
+          <div *ngIf="claimEvaluationResult && !evaluatingClaim" class="eval-result-card">
+            <div class="recommendation-header" [class.approve]="claimEvaluationResult.claimValid">
+              <span class="rec-tag">{{ claimEvaluationResult.recommendation }}</span>
+              <span class="confidence">Confidence: {{ claimEvaluationResult.confidence }}%</span>
             </div>
+
+            <p class="reasoning"><strong>Reasoning:</strong> {{ claimEvaluationResult.reasoning }}</p>
+
+            <h4>Corroborating Evidence Gathered:</h4>
+            <ul class="evidence-list">
+              <li *ngFor="let ev of claimEvaluationResult.evidence">
+                <span class="check-icon">✓</span> {{ ev }}
+              </li>
+            </ul>
           </div>
         </div>
-      </div>
+      </section>
+    </ng-container>
 
-      <div class="panel">
-        <div class="panel-header">
-          <h2>System Connectivity</h2>
-          <span>Live check</span>
+    <!-- OVERVIEW TAB -->
+    <ng-container *ngIf="activeTab === 'overview'">
+      <section class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">Total Trips</div>
+          <div class="metric-value">{{ dashboard.totalTrips }}</div>
+          <div class="metric-caption">Trips processed today</div>
         </div>
 
-        <div class="connection-row">
-          <span>Angular Frontend</span>
-          <strong class="success">Connected</strong>
+        <div class="metric-card">
+          <div class="metric-label">Active Vehicles</div>
+          <div class="metric-value">{{ dashboard.activeVehicles }}</div>
+          <div class="metric-caption">Vehicles currently active</div>
         </div>
 
-        <div class="connection-row">
-          <span>Spring Boot API</span>
-          <strong [class.success]="backendStatus === 'UP'" [class.danger]="backendStatus === 'DOWN'">
-            {{ backendStatus }}
-          </strong>
+        <div class="metric-card">
+          <div class="metric-label">On-Time Performance</div>
+          <div class="metric-value success">{{ dashboard.onTimePercentage }}%</div>
+          <div class="metric-caption">Successful on-time trips</div>
         </div>
 
-        <div class="connection-row">
-          <span>Health Endpoint</span>
-          <strong>/api/health</strong>
+        <div class="metric-card">
+          <div class="metric-label">Delayed Trips</div>
+          <div class="metric-value danger">{{ dashboard.delayedTrips }}</div>
+          <div class="metric-caption">Trips requiring attention</div>
         </div>
+      </section>
 
-        <div class="connection-row">
-          <span>Dashboard Endpoint</span>
-          <strong>/api/dashboard/summary</strong>
+      <section class="content-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>System Connectivity</h2>
+            <span>Live Check</span>
+          </div>
+          <div class="connection-row">
+            <span>Angular Frontend</span>
+            <strong class="success">Connected</strong>
+          </div>
+          <div class="connection-row">
+            <span>Spring Boot API</span>
+            <strong [class.success]="backendStatus === 'UP'" [class.danger]="backendStatus === 'DOWN'">{{ backendStatus }}</strong>
+          </div>
         </div>
-
-        <div class="connection-row">
-          <span>API Port</span>
-          <strong>8080</strong>
-        </div>
-      </div>
-    </section>
+      </section>
+    </ng-container>
   </main>
 </div>
