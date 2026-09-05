@@ -155,6 +155,10 @@ export class EmployeeDashboardComponent implements OnInit {
     return this.dashboardData?.tripHistory?.filter(t => !t.isNoShow && t.boardingStatus !== 'Weekend Off' && !t.boardingStatus.includes('WFH')).length || 0;
   }
 
+  get onTimeDaysCount(): number {
+    return this.dashboardData?.tripHistory?.filter(t => !t.isNoShow && t.delayMinutes === 0 && (t.boardingStatus === 'Boarded' || t.boardingStatus === 'On-Time')).length || 0;
+  }
+
   get delayedDaysCount(): number {
     return this.dashboardData?.tripHistory?.filter(t => t.delayMinutes > 0 || t.boardingStatus === 'Delayed').length || 0;
   }

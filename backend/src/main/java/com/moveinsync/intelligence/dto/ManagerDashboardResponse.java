@@ -12,7 +12,8 @@ public record ManagerDashboardResponse(
         int teamSize,
         double teamReadinessIndex,
         double averageCsat,
-        List<ManagerShiftSummary> shifts
+        List<ManagerShiftSummary> shifts,
+        List<EmployeeDelayNotification> delayNotifications
 ) {
     public record ManagerShiftSummary(
             String shiftId,
@@ -70,6 +71,27 @@ public record ManagerDashboardResponse(
             long totalFeedbackCount
     ) {}
 
+    public record EmployeeDelayNotification(
+            String notificationId,
+            String stwid,
+            String employeeName,
+            String role,
+            String shiftTime,
+            String routeId,
+            String cabReg,
+            String driverName,
+            String driverPhone,
+            long delayMinutes,
+            String delayReason,
+            String severity,
+            String emailRecipient,
+            String emailSubject,
+            String emailBody,
+            String emailDispatchedAt,
+            String emailDeliveryStatus,
+            boolean acknowledged
+    ) {}
+
     public record ManagerProfile(
             String managerId,
             String managerName,
@@ -78,5 +100,16 @@ public record ManagerDashboardResponse(
             String companyName,
             int teamSize,
             String office
+    ) {}
+
+    public record AcknowledgeDelayRequest(
+            String notificationId,
+            String managerId
+    ) {}
+
+    public record SimulateDelayRequest(
+            String stwid,
+            long delayMinutes,
+            String reason
     ) {}
 }

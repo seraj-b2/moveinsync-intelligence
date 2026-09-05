@@ -14,7 +14,8 @@ import {
   ApiService,
   ManagerDashboardResponse,
   ManagerShiftSummary,
-  TeamMemberRosterDetail
+  TeamMemberRosterDetail,
+  EmployeeDelayNotification
 } from '../services/api.service';
 
 @Component({
@@ -36,7 +37,7 @@ export class ManagerDashboardComponent implements OnInit, OnDestroy {
   managerId: string = 'MGR-103';
 
   // Navigation & Filter State
-  activeTab: 'roster' | 'safety' | 'csat' | 'ai-advisor' = 'roster';
+  activeTab: 'roster' | 'notifications' | 'safety' | 'csat' | 'ai-advisor' = 'roster';
   rosterFilter: 'ALL' | 'ON_TIME' | 'DELAYED' | 'NO_SHOW' = 'ALL';
 
   availableMonths = ['July 2026', 'June 2026', 'May 2026', 'All Months'];
@@ -45,6 +46,14 @@ export class ManagerDashboardComponent implements OnInit, OnDestroy {
   dashboardData: ManagerDashboardResponse | null = null;
   selectedShift: ManagerShiftSummary | null = null;
   loading = true;
+
+  // Delay Notifications & Email Alerts
+  selectedEmailModal: EmployeeDelayNotification | null = null;
+  simulatingDelay = false;
+  simulatedStwid = 'STW-829104';
+  simulatedDelayMins = 18;
+  simulatedReason = 'Heavy traffic bottleneck on arterial flyover corridor';
+  delaySimSuccessMessage = '';
 
   // Agentic AI Shift Risk Assistant
   simulatedScenario = '';
@@ -62,6 +71,119 @@ export class ManagerDashboardComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.routeSub?.unsubscribe();
+  }
+
+  get delayNotifications(): EmployeeDelayNotification[] {
+    return this.dashboardData?.delayNotifications || [];
+  }
+
+  get unacknowledgedDelayCount(): number {
+    return this.delayNotifications.filter(n => !n.acknowledged).length;
+  }
+
+  get criticalDelayCount(): number {
+    return this.delayNotifications.filter(n => n.delayMinutes >= 15).length;
+  }
+
+  get onTimeRosterCount(): number {
+    return this.selectedShift?.roster.filter(r => r.pickupStatus === 'ON_TIME' && !r.isNoShow).length || 0;
+  }
+
+  get delayedRosterCount(): number {
+    return this.selectedShift?.roster.filter(r => r.pickupStatus === 'DELAYED' && !r.isNoShow).length || 0;
+  }
+
+  get noShowRosterCount(): number {
+    return this.selectedShift?.roster.filter(r => r.isNoShow).length || 0;
+  }
+
+  get delayedPercentage(): number {
+    if (!this.selectedShift || this.selectedShift.totalDirectReports === 0) return 0;
+    return Math.round((this.delayedRosterCount / this.selectedShift.totalDirectReports) * 1000) / 10;
+  }
+
+  get boardedPercentage(): number {
+    if (!this.selectedShift || this.selectedShift.totalDirectReports === 0) return 0;
+    return Math.round((this.selectedShift.boardedCount / this.selectedShift.totalDirectReports) * 1000) / 10;
+  }
+
+  openEmailModal(notification: EmployeeDelayNotification): void {
+    this.selectedEmailModal = notification;
+    this.changeDetectorRef.detectChanges();
+  }
+
+  closeEmailModal(): void {
+    this.selectedEmailModal = null;
+    this.changeDetectorRef.detectChanges();
+  }
+
+  acknowledgeNotification(notification: EmployeeDelayNotification): void {
+    this.apiService.acknowledgeDelayNotification(this.companyName, this.managerId, notification.notificationId).subscribe({
+      next: () => {
+        notification.acknowledged = true;
+        this.changeDetectorRef.detectChanges();
+      },
+      error: () => {
+        notification.acknowledged = true;
+        this.changeDetectorRef.detectChanges();
+      }
+    });
+  }
+
+  triggerSimulateDelay(): void {
+    this.simulatingDelay = true;
+    this.delaySimSuccessMessage = '';
+
+    this.apiService.simulateDelayNotification(
+      this.companyName,
+      this.managerId,
+      this.simulatedStwid,
+      this.simulatedDelayMins,
+      this.simulatedReason
+    ).subscribe({
+      next: (newNotif) => {
+        this.simulatingDelay = false;
+        if (this.dashboardData) {
+          if (!this.dashboardData.delayNotifications) {
+            this.dashboardData.delayNotifications = [];
+          }
+          this.dashboardData.delayNotifications.unshift(newNotif);
+        }
+
+        // Live Dynamic Update: reflect simulated delay in active shift roster & recalculate metrics
+        if (this.selectedShift && this.selectedShift.roster) {
+          const member = this.selectedShift.roster.find(m => m.stwid.toUpperCase() === newNotif.stwid.toUpperCase());
+          if (member) {
+            member.pickupStatus = 'DELAYED';
+            member.delayMinutes = newNotif.delayMinutes;
+            member.noShowReason = newNotif.delayReason;
+
+            const total = this.selectedShift.roster.length;
+            const noShows = this.selectedShift.roster.filter(r => r.isNoShow).length;
+            const onTimes = this.selectedShift.roster.filter(r => r.pickupStatus === 'ON_TIME' && !r.isNoShow).length;
+            const delays = this.selectedShift.roster.filter(r => r.pickupStatus === 'DELAYED' && !r.isNoShow).length;
+
+            this.selectedShift.boardedCount = total - noShows;
+            this.selectedShift.noShowCount = noShows;
+            this.selectedShift.noShowRatePercentage = Math.round((noShows / total) * 1000) / 10;
+            this.selectedShift.onTimeBoardingPercentage = Math.round((onTimes / total) * 1000) / 10;
+            this.selectedShift.shiftReadinessIndex = Math.round(((onTimes * 1.0 + delays * 0.6) / total) * 1000) / 10;
+
+            if (this.dashboardData) {
+              this.dashboardData.teamReadinessIndex = this.selectedShift.shiftReadinessIndex;
+            }
+          }
+        }
+
+        this.delaySimSuccessMessage = `Immediate Email Dispatched to ${newNotif.emailRecipient}! Direct report ${newNotif.employeeName} (${newNotif.stwid}) delay alert logged.`;
+        this.changeDetectorRef.detectChanges();
+      },
+      error: (err) => {
+        this.simulatingDelay = false;
+        console.error('Error simulating delay', err);
+        this.changeDetectorRef.detectChanges();
+      }
+    });
   }
 
   private updateDefaultScenario(): void {
@@ -82,6 +204,29 @@ export class ManagerDashboardComponent implements OnInit, OnDestroy {
         { stwid: 'STW-829104', employeeName: 'Tanmay Sen', role: 'Tier-2 Analyst', managerId: 'MGR-103', office: 'Cedar Ridge Office', shiftTime: '18:15', routeId: 'Route 03', cabReg: 'KA-05-MK-3310', pickupStatus: 'ON_TIME', delayMinutes: 0, plannedKm: 13.20, traveledKm: 13.00, isNoShow: false, noShowReason: '', gender: 'MALE' },
         { stwid: 'STW-930192', employeeName: 'Deepika Rao', role: 'Escalation Desk', managerId: 'MGR-103', office: 'Fairview Commons', shiftTime: '18:15', routeId: 'Route 11', cabReg: 'KA-01-NJ-7712', pickupStatus: 'DELAYED', delayMinutes: 22, plannedKm: 19.80, traveledKm: 26.50, isNoShow: false, noShowReason: 'SEVERE_TRAFFIC', gender: 'FEMALE' },
         { stwid: 'STW-104928', employeeName: 'Siddharth Paul', role: 'NOC Engineer', managerId: 'MGR-103', office: 'Fairview Commons', shiftTime: '18:15', routeId: 'Route 11', cabReg: 'KA-01-NJ-7712', pickupStatus: 'NO_SHOW', delayMinutes: 0, plannedKm: 15.00, traveledKm: 0.00, isNoShow: true, noShowReason: 'PERSONAL_EMERGENCY', gender: 'MALE' }
+      ];
+
+      const defaultNotifs: EmployeeDelayNotification[] = [
+        {
+          notificationId: 'NOTIF-DLY-1031',
+          stwid: 'STW-930192',
+          employeeName: 'Deepika Rao',
+          role: 'Global Escalation Specialist',
+          shiftTime: '18:15',
+          routeId: 'Route 11',
+          cabReg: 'KA-01-NJ-7712',
+          driverName: 'Anand Rao',
+          driverPhone: '+91-98803-12490',
+          delayMinutes: 22,
+          delayReason: 'Severe corridor bottleneck on Outer Ring Road Flyover due to metro construction',
+          severity: 'CRITICAL',
+          emailRecipient: 'meenakshi.raman@catalyst.com',
+          emailSubject: '[URGENT COMMUTE DELAY ALERT] Direct Report Deepika Rao (STW-930192) Delayed +22m',
+          emailBody: 'Dear Meenakshi Raman,\n\nMoveInSync Telemetry Alert: Your direct report Deepika Rao (Global Escalation Specialist, STW-930192) has encountered a transit delay on Route 11 (Cab KA-01-NJ-7712).\n\n• Delay Duration: +22 minutes\n• Root Cause / Issue: Severe corridor bottleneck on Outer Ring Road Flyover due to metro construction\n• Assigned Driver: Anand Rao (+91-98803-12490)\n• Planned Pickup: 17:35 | Actual Pickup: 17:57\n• Expected Floor Arrival: 18:37 (Scheduled Shift Login: 18:15)\n• Shift Coverage Impact: Floor handover grace period activated (+15m).\n\nRegards,\nMoveInSync Autonomous Mobility Dispatch Desk',
+          emailDispatchedAt: 'Today, September 5, 2026 - 17:58 IST',
+          emailDeliveryStatus: 'DELIVERED_TO_INBOX',
+          acknowledged: false
+        }
       ];
 
       return {
@@ -111,7 +256,8 @@ export class ManagerDashboardComponent implements OnInit, OnDestroy {
             ],
             csatBreakdown: { overallCsat: 4.4, driverRating: 4.5, cabRating: 4.3, routeRating: 4.1, safetyRating: 4.7, marshalRating: 4.5, totalFeedbackCount: 82 }
           }
-        ]
+        ],
+        delayNotifications: defaultNotifs
       };
     } else if (this.managerId === 'MGR-102') {
       const roster: TeamMemberRosterDetail[] = [
@@ -148,6 +294,28 @@ export class ManagerDashboardComponent implements OnInit, OnDestroy {
               { alertId: 'ALT-SAF-7120', eventType: 'OVER_SPEEDING', severity: 'Sev-2', stwid: 'STW-401928', employeeName: 'Aditya Joshi (Route 07)', cabReg: 'KA-04-TR-8811', escortAssigned: false, stateText: 'RESOLVED', timestamp: month + ' 08:12', actionRequired: 'Vehicle speed exceeded 65 km/h on Expressway; automated warning buzzer acknowledged' }
             ],
             csatBreakdown: { overallCsat: 4.8, driverRating: 4.9, cabRating: 4.7, routeRating: 4.6, safetyRating: 4.9, marshalRating: 4.7, totalFeedbackCount: 95 }
+          }
+        ],
+        delayNotifications: [
+          {
+            notificationId: 'NOTIF-DLY-1021',
+            stwid: 'STW-401928',
+            employeeName: 'Aditya Joshi',
+            role: 'Senior Backend Engineer',
+            shiftTime: '08:30',
+            routeId: 'Route 07',
+            cabReg: 'KA-04-TR-8811',
+            driverName: 'Kishore Kumar',
+            driverPhone: '+91-98807-55667',
+            delayMinutes: 14,
+            delayReason: 'Unplanned road closure on Whitefield corridor',
+            severity: 'WARNING',
+            emailRecipient: 'priya.sharma@catalyst.com',
+            emailSubject: '[COMMUTE DELAY ALERT] Direct Report Aditya Joshi (STW-401928) Delayed +14m',
+            emailBody: 'Dear Priya Sharma,\n\nYour direct report Aditya Joshi is delayed by 14m on Route 07.\n\nRegards,\nMoveInSync Mobility Desk',
+            emailDispatchedAt: 'Today, September 5, 2026 - 08:06 IST',
+            emailDeliveryStatus: 'DELIVERED_TO_INBOX',
+            acknowledged: false
           }
         ]
       };
@@ -189,6 +357,28 @@ export class ManagerDashboardComponent implements OnInit, OnDestroy {
               { alertId: 'ALT-SAF-8902', eventType: 'FIRST_MALE_NO_SHOW', severity: 'Sev-2', stwid: 'STW-101925', employeeName: 'Rahul Verma', cabReg: 'KA-05-MB-1102', escortAssigned: false, stateText: 'RESOLVED', timestamp: month + ' 21:15', actionRequired: 'Roster updated; confirmed via automated SMS cancellation' }
             ],
             csatBreakdown: { overallCsat: 4.6, driverRating: 4.7, cabRating: 4.4, routeRating: 4.3, safetyRating: 4.9, marshalRating: 4.8, totalFeedbackCount: 128 }
+          }
+        ],
+        delayNotifications: [
+          {
+            notificationId: 'NOTIF-DLY-1011',
+            stwid: 'STW-194821',
+            employeeName: 'Pooja Hegde',
+            role: 'Cloud Infrastructure Engineer',
+            shiftTime: '21:30',
+            routeId: 'Route 04',
+            cabReg: 'KA-05-MB-1102',
+            driverName: 'Suresh Gowda',
+            driverPhone: '+91-98802-77112',
+            delayMinutes: 18,
+            delayReason: 'Traffic gridlock at Koramangala signal',
+            severity: 'CRITICAL',
+            emailRecipient: 'vikram.malhotra@catalyst.com',
+            emailSubject: '[URGENT COMMUTE DELAY ALERT] Direct Report Pooja Hegde (STW-194821) Delayed +18m',
+            emailBody: 'Dear Vikram Malhotra,\n\nYour direct report Pooja Hegde is delayed by 18m on Route 04.\n\nRegards,\nMoveInSync Mobility Desk',
+            emailDispatchedAt: 'Today, September 5, 2026 - 21:10 IST',
+            emailDeliveryStatus: 'DELIVERED_TO_INBOX',
+            acknowledged: false
           }
         ]
       };

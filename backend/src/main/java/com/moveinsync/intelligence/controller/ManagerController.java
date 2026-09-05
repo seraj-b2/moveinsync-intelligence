@@ -1,16 +1,12 @@
 package com.moveinsync.intelligence.controller;
 
 import com.moveinsync.intelligence.dto.ManagerDashboardResponse;
-import com.moveinsync.intelligence.dto.ManagerDashboardResponse.ManagerProfile;
+import com.moveinsync.intelligence.dto.ManagerDashboardResponse.*;
 import com.moveinsync.intelligence.service.ManagerService;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/managers")
@@ -35,5 +31,24 @@ public class ManagerController {
             @RequestParam(required = false) String month
     ) {
         return managerService.getManagerDashboard(companyName, managerId, month);
+    }
+
+    @PostMapping("/{companyName}/{managerId}/delay-notifications/acknowledge")
+    public Map<String, Object> acknowledgeDelayNotification(
+            @PathVariable String companyName,
+            @PathVariable String managerId,
+            @RequestBody AcknowledgeDelayRequest request
+    ) {
+        boolean success = managerService.acknowledgeNotification(managerId, request.notificationId());
+        return Map.of("success", success, "notificationId", request.notificationId());
+    }
+
+    @PostMapping("/{companyName}/{managerId}/delay-notifications/simulate")
+    public EmployeeDelayNotification simulateDelayNotification(
+            @PathVariable String companyName,
+            @PathVariable String managerId,
+            @RequestBody SimulateDelayRequest request
+    ) {
+        return managerService.simulateDelay(managerId, request);
     }
 }

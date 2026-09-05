@@ -88,11 +88,16 @@ public class EmployeePortalService {
         // Compute live metrics across all days of this period
         int totalDaysInMonth = history.size();
         long workingDays = history.stream().filter(h -> !h.isNoShow() && !"Weekend Off".equalsIgnoreCase(h.boardingStatus()) && !"WFH / Approved Leave".equalsIgnoreCase(h.boardingStatus())).count();
-        long onTimeTrips = history.stream().filter(h -> "Boarded".equalsIgnoreCase(h.boardingStatus()) && h.delayMinutes() == 0).count();
+        long onTimeTrips = history.stream().filter(h -> !h.isNoShow() && h.delayMinutes() == 0 && ("Boarded".equalsIgnoreCase(h.boardingStatus()) || "On-Time".equalsIgnoreCase(h.boardingStatus()))).count();
         double totalKm = history.stream().mapToDouble(TripActivityRecord::traveledKm).sum();
         double totalKmRounded = Math.round(totalKm * 10.0) / 10.0;
         double onTimeRate = (workingDays > 0) ? Math.round(((double) onTimeTrips / workingDays) * 1000.0) / 10.0 : 95.0;
-        int avgDelay = (int) Math.round(history.stream().mapToInt(TripActivityRecord::delayMinutes).average().orElse(0.0));
+        double avgCommuteDelay = history.stream()
+                .filter(h -> !h.isNoShow() && !"Weekend Off".equalsIgnoreCase(h.boardingStatus()) && !"WFH / Approved Leave".equalsIgnoreCase(h.boardingStatus()))
+                .mapToInt(TripActivityRecord::delayMinutes)
+                .average()
+                .orElse(0.0);
+        int avgDelay = (int) Math.round(avgCommuteDelay);
 
         EmployeeProfile profile = new EmployeeProfile(
                 meta.stwid(),

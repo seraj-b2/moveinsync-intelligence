@@ -295,7 +295,7 @@
                 Commuted Only ({{ commutedDaysCount }})
               </button>
               <button type="button" [class.active]="historyFilter === 'ON_TIME'" (click)="historyFilter = 'ON_TIME'">
-                On-Time
+                On-Time ({{ onTimeDaysCount }})
               </button>
               <button type="button" [class.active]="historyFilter === 'DELAYED'" (click)="historyFilter = 'DELAYED'">
                 Delayed ({{ delayedDaysCount }})

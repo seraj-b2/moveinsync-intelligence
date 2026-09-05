@@ -159,6 +159,27 @@ export interface ManagerShiftSummary {
   csatBreakdown: TeamCsatDetail;
 }
 
+export interface EmployeeDelayNotification {
+  notificationId: string;
+  stwid: string;
+  employeeName: string;
+  role: string;
+  shiftTime: string;
+  routeId: string;
+  cabReg: string;
+  driverName: string;
+  driverPhone: string;
+  delayMinutes: number;
+  delayReason: string;
+  severity: string;
+  emailRecipient: string;
+  emailSubject: string;
+  emailBody: string;
+  emailDispatchedAt: string;
+  emailDeliveryStatus: string;
+  acknowledged: boolean;
+}
+
 export interface ManagerDashboardResponse {
   managerId: string;
   managerName: string;
@@ -170,6 +191,7 @@ export interface ManagerDashboardResponse {
   teamReadinessIndex: number;
   averageCsat: number;
   shifts: ManagerShiftSummary[];
+  delayNotifications: EmployeeDelayNotification[];
 }
 
 export interface ManagerProfile {
@@ -370,5 +392,19 @@ export class ApiService {
 
   triggerEmployeeSos(request: SosTriggerRequest): Observable<ActionResponse> {
     return this.http.post<ActionResponse>(`${this.apiUrl}/employees/sos`, request);
+  }
+
+  acknowledgeDelayNotification(companyName: string, managerId: string, notificationId: string): Observable<{ success: boolean; notificationId: string }> {
+    return this.http.post<{ success: boolean; notificationId: string }>(
+      `${this.apiUrl}/managers/${encodeURIComponent(companyName)}/${encodeURIComponent(managerId)}/delay-notifications/acknowledge`,
+      { notificationId, managerId }
+    );
+  }
+
+  simulateDelayNotification(companyName: string, managerId: string, stwid: string, delayMinutes: number, reason: string): Observable<EmployeeDelayNotification> {
+    return this.http.post<EmployeeDelayNotification>(
+      `${this.apiUrl}/managers/${encodeURIComponent(companyName)}/${encodeURIComponent(managerId)}/delay-notifications/simulate`,
+      { stwid, delayMinutes, reason }
+    );
   }
 }

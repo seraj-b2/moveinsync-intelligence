@@ -15,6 +15,14 @@
       </button>
       <button 
         type="button" 
+        [class.active]="activeTab === 'notifications'" 
+        (click)="activeTab = 'notifications'"
+        class="tab-with-badge">
+        🔔 Delay Alerts & Emails
+        <span class="tab-badge-count" *ngIf="unacknowledgedDelayCount > 0">{{ unacknowledgedDelayCount }}</span>
+      </button>
+      <button 
+        type="button" 
         [class.active]="activeTab === 'safety'" 
         (click)="activeTab = 'safety'">
         Team Safety & Escort
@@ -59,20 +67,16 @@
         </div>
       </div>
 
-      <div class="manager-scope-card">
-        <div class="scope-stat">
-          <span>Direct Reports</span>
-          <strong>{{ dashboardData.teamSize }}</strong>
+      <div class="profile-stats">
+        <div class="stat-box">
+          <span>Team Size</span>
+          <strong>{{ dashboardData.teamSize }} Direct Reports</strong>
         </div>
-        <div class="scope-divider"></div>
-        <div class="scope-stat">
-          <span>Team Floor Readiness</span>
-          <strong [class.success-text]="dashboardData.teamReadinessIndex >= 80" [class.warning-text]="dashboardData.teamReadinessIndex < 80">
-            {{ dashboardData.teamReadinessIndex }}%
-          </strong>
+        <div class="stat-box">
+          <span>Team Readiness</span>
+          <strong class="green-text">{{ dashboardData.teamReadinessIndex }}%</strong>
         </div>
-        <div class="scope-divider"></div>
-        <div class="scope-stat">
+        <div class="stat-box">
           <span>Team CSAT</span>
           <strong class="gold-text">★ {{ dashboardData.averageCsat }}</strong>
         </div>
@@ -164,14 +168,24 @@
             <div class="stat-box info">
               <span>Boarded / Arrived</span>
               <strong>{{ selectedShift.boardedCount }}</strong>
-              <small>Confirmed present on floor</small>
+              <small>{{ boardedPercentage }}% floor coverage</small>
             </div>
-            <div class="stat-box danger">
+            <div class="stat-box success">
+              <span>Checked-In On-Time</span>
+              <strong>{{ onTimeRosterCount }}</strong>
+              <small>{{ selectedShift.onTimeBoardingPercentage }}% on-time boarding</small>
+            </div>
+            <div class="stat-box warning" *ngIf="delayedRosterCount > 0">
+              <span>Delayed Commutes</span>
+              <strong>{{ delayedRosterCount }}</strong>
+              <small>{{ delayedPercentage }}% in corridor delay</small>
+            </div>
+            <div class="stat-box danger" *ngIf="selectedShift.noShowCount > 0">
               <span>Commute No-Shows</span>
               <strong>{{ selectedShift.noShowCount }}</strong>
               <small>{{ selectedShift.noShowRatePercentage }}% no-show rate</small>
             </div>
-            <div class="stat-box success">
+            <div class="stat-box" [class.success]="selectedShift.shiftReadinessIndex >= 80" [class.warning]="selectedShift.shiftReadinessIndex < 80">
               <span>Shift Readiness Index</span>
               <strong>{{ selectedShift.shiftReadinessIndex }}%</strong>
               <small>Target Benchmark: 80.0%</small>
@@ -185,7 +199,10 @@
               <div class="bar ontime-bar" [style.width.%]="selectedShift.onTimeBoardingPercentage" title="On-Time: {{ selectedShift.onTimeBoardingPercentage }}%">
                 On-Time ({{ selectedShift.onTimeBoardingPercentage }}%)
               </div>
-              <div class="bar noshow-bar" [style.width.%]="selectedShift.noShowRatePercentage" title="No-Show: {{ selectedShift.noShowRatePercentage }}%">
+              <div class="bar delayed-bar" *ngIf="delayedPercentage > 0" [style.width.%]="delayedPercentage" title="Delayed: {{ delayedPercentage }}%">
+                Delayed ({{ delayedPercentage }}%)
+              </div>
+              <div class="bar noshow-bar" *ngIf="selectedShift.noShowRatePercentage > 0" [style.width.%]="selectedShift.noShowRatePercentage" title="No-Show: {{ selectedShift.noShowRatePercentage }}%">
                 No-Show ({{ selectedShift.noShowRatePercentage }}%)
               </div>
             </div>
@@ -206,13 +223,13 @@
                 All ({{ selectedShift.roster.length }})
               </button>
               <button type="button" [class.active]="rosterFilter === 'ON_TIME'" (click)="rosterFilter = 'ON_TIME'">
-                On-Time
+                On-Time ({{ onTimeRosterCount }})
               </button>
               <button type="button" [class.active]="rosterFilter === 'DELAYED'" (click)="rosterFilter = 'DELAYED'">
-                Delayed
+                Delayed ({{ delayedRosterCount }})
               </button>
               <button type="button" [class.active]="rosterFilter === 'NO_SHOW'" (click)="rosterFilter = 'NO_SHOW'">
-                No-Shows
+                No-Shows ({{ noShowRosterCount }})
               </button>
             </div>
           </div>
@@ -282,6 +299,243 @@
               </tr>
             </tbody>
           </table>
+        </div>
+      </section>
+    </ng-container>
+
+    <!-- TAB: DELAY ALERTS & DISPATCHED EMAILS (DUTY-OF-CARE REAL-TIME TELEMETRY) -->
+    <ng-container *ngIf="activeTab === 'notifications' && dashboardData">
+      <section class="hero-card">
+        <div>
+          <p class="eyebrow">DUTY-OF-CARE TELEMETRY • IMMEDIATE EMAIL ALERTS</p>
+          <h1>Employee Delay Alerts & Dispatched Emails for {{ dashboardData.managerName }}</h1>
+          <p class="hero-description">
+            Whenever any direct report commute experiences an unexpected bottleneck or delay, an automated immediate email notification is dispatched to your official address (<strong>{{ dashboardData.managerId.toLowerCase() }}&#64;catalyst.com</strong>) containing exact telemetry, vehicle details, driver contact, root cause breakdown, and shift SLA protection grace.
+          </p>
+        </div>
+        <div class="hero-badge hero-badge-email">
+          <span>✉️</span>
+          Auto-Email Dispatch Active
+        </div>
+      </section>
+
+      <!-- KPI METRIC STRIP -->
+      <section class="kpi-grid">
+        <div class="kpi-card card-alert">
+          <div class="kpi-header">
+            <span class="kpi-title">Active Delay Alerts</span>
+            <span class="kpi-icon-pill">🚨</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-value" [class.warning-text]="delayNotifications.length > 0">{{ delayNotifications.length }}</span>
+            <span class="kpi-trend" [class.danger-trend]="unacknowledgedDelayCount > 0" [class.success-trend]="unacknowledgedDelayCount === 0">
+              {{ unacknowledgedDelayCount > 0 ? (unacknowledgedDelayCount + ' Action Needed') : '✓ All Resolved' }}
+            </span>
+          </div>
+          <small class="kpi-sub">Direct reports affected in current shift roster</small>
+        </div>
+
+        <div class="kpi-card card-email">
+          <div class="kpi-header">
+            <span class="kpi-title">Immediate Emails Dispatched</span>
+            <span class="kpi-icon-pill">✉️</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-value success-text">{{ delayNotifications.length }}</span>
+            <span class="kpi-trend success-trend">100% Delivered</span>
+          </div>
+          <small class="kpi-sub">Dispatched to <code>{{ dashboardData.managerId.toLowerCase() }}&#64;catalyst.com</code></small>
+        </div>
+
+        <div class="kpi-card card-critical">
+          <div class="kpi-header">
+            <span class="kpi-title">Critical Delays (≥15m)</span>
+            <span class="kpi-icon-pill">⚠️</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-value" [class.danger-text]="criticalDelayCount > 0" [class.success-text]="criticalDelayCount === 0">
+              {{ criticalDelayCount }}
+            </span>
+            <span class="kpi-trend" [class.danger-trend]="criticalDelayCount > 0" [class.success-trend]="criticalDelayCount === 0">
+              {{ criticalDelayCount > 0 ? 'Floor Risk' : 'Normal Transit' }}
+            </span>
+          </div>
+          <small class="kpi-sub">Automatic SLA buffer grace window applied</small>
+        </div>
+
+        <div class="kpi-card card-sla">
+          <div class="kpi-header">
+            <span class="kpi-title">Shift SLA Protection</span>
+            <span class="kpi-icon-pill">🛡️</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-value indigo-text">+30 Min</span>
+            <span class="kpi-trend success-trend">Grace Active</span>
+          </div>
+          <small class="kpi-sub">Shift handover penalty waived by Central Desk</small>
+        </div>
+      </section>
+
+      <!-- REAL-TIME DELAY SIMULATION TOOL -->
+      <section class="simulation-tool-card">
+        <div class="sim-header">
+          <div class="sim-title-wrap">
+            <span class="sim-icon">⚡</span>
+            <div>
+              <h3>Test Real-Time Employee Delay & Instant Email Dispatch</h3>
+              <p>Simulate an unexpected commute issue for any direct report to observe instant automated email dispatch to {{ dashboardData.managerName }}.</p>
+            </div>
+          </div>
+          <span class="sim-badge">Live Dispatcher Sandbox</span>
+        </div>
+
+        <div class="sim-form-grid">
+          <div class="sim-field">
+            <label>Select Delayed Employee (Direct Report):</label>
+            <select [(ngModel)]="simulatedStwid" class="sim-select">
+              <option *ngFor="let m of dashboardData.teamRoster" [value]="m.stwid">
+                {{ m.employeeName }} ({{ m.stwid }}) — {{ m.role }} (Route {{ m.routeId }})
+              </option>
+            </select>
+          </div>
+
+          <div class="sim-field">
+            <label>Delay Minutes Sensed:</label>
+            <input type="number" [(ngModel)]="simulatedDelayMins" min="5" max="90" step="5" class="sim-input">
+          </div>
+
+          <div class="sim-field sim-field-wide">
+            <label>Delay Root Cause / Incident Telemetry:</label>
+            <input type="text" [(ngModel)]="simulatedReason" placeholder="e.g., Heavy traffic bottleneck on arterial flyover corridor" class="sim-input">
+          </div>
+
+          <div class="sim-action-col">
+            <button type="button" class="btn-dispatch-sim" [disabled]="simulatingDelay" (click)="triggerSimulateDelay()">
+              <span *ngIf="!simulatingDelay">🚀 Trigger Delay & Send Instant Email</span>
+              <span *ngIf="simulatingDelay">⏳ Dispatched Telemetry & Sending Email...</span>
+            </button>
+          </div>
+        </div>
+
+        <div *ngIf="delaySimSuccessMessage" class="sim-success-alert">
+          <span class="success-icon">✓</span>
+          <div class="success-text">
+            <strong>Email Successfully Dispatched!</strong>
+            <span>{{ delaySimSuccessMessage }}</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- DELAY NOTIFICATION LOGS & EMAIL CARDS -->
+      <section class="delay-notifications-container">
+        <div class="section-header-row">
+          <div>
+            <h2>Dispatched Email Log & Delay Incident Feed</h2>
+            <p>Chronological feed of all commute delay alerts and automated emails delivered to {{ dashboardData.managerName }} ({{ dashboardData.managerId }}).</p>
+          </div>
+          <span class="alert-count-tag">{{ delayNotifications.length }} Total Dispatched Incident{{ delayNotifications.length === 1 ? '' : 's' }}</span>
+        </div>
+
+        <div *ngIf="delayNotifications.length === 0" class="empty-notifs-card">
+          <span class="empty-icon">🎉</span>
+          <h3>Zero Active Delays</h3>
+          <p>All direct reports for {{ dashboardData.managerName }} are currently commuting on-time with zero logged incidents.</p>
+        </div>
+
+        <div class="delay-cards-grid" *ngIf="delayNotifications.length > 0">
+          <div 
+            *ngFor="let notif of delayNotifications" 
+            class="delay-card"
+            [class.unacknowledged]="!notif.acknowledged"
+            [class.high-severity]="notif.severity === 'CRITICAL'">
+            
+            <div class="delay-card-top">
+              <div class="employee-meta">
+                <div class="emp-avatar">{{ notif.employeeName.charAt(0) }}</div>
+                <div>
+                  <div class="emp-name-row">
+                    <h4>{{ notif.employeeName }}</h4>
+                    <span class="stwid-pill">{{ notif.stwid }}</span>
+                    <span class="role-pill">{{ notif.role }}</span>
+                  </div>
+                  <div class="shift-route-sub">
+                    <span>🕒 Shift: <strong>{{ notif.shiftTime }}</strong></span>
+                    <span>•</span>
+                    <span>🚖 Route <strong>{{ notif.routeId }}</strong></span>
+                    <span>•</span>
+                    <span>Cab: <code>{{ notif.cabReg }}</code></span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="delay-badge-col">
+                <div class="delay-mins-pill" [class.critical]="notif.delayMinutes >= 20">
+                  +{{ notif.delayMinutes }} Mins Delay
+                </div>
+                <span class="sev-tag" [class.sev-critical]="notif.severity === 'CRITICAL'" [class.sev-warning]="notif.severity === 'WARNING'">
+                  {{ notif.severity }}
+                </span>
+                <span class="ack-status-tag" [class.is-ack]="notif.acknowledged" [class.is-unack]="!notif.acknowledged">
+                  {{ notif.acknowledged ? '✓ Acknowledged' : '🚨 Action Required' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- ROOT CAUSE INFO BOX -->
+            <div class="delay-reason-box">
+              <div class="reason-label">
+                <span>⚠️ Commute Delay Root Cause / Incident:</span>
+              </div>
+              <p class="reason-content">{{ notif.delayReason }}</p>
+            </div>
+
+            <!-- EMAIL DISPATCH RECEIPT STRIP -->
+            <div class="email-dispatch-strip">
+              <div class="strip-left">
+                <span class="email-icon">✉️</span>
+                <div class="email-summary">
+                  <div class="email-subject-line"><strong>Subject:</strong> {{ notif.emailSubject }}</div>
+                  <div class="email-meta-line">
+                    <span>Dispatched To: <code>{{ notif.emailRecipient }}</code></span>
+                    <span>•</span>
+                    <span>Sent: <strong>{{ notif.emailDispatchedAt }}</strong></span>
+                    <span>•</span>
+                    <span class="status-indicator">🟢 {{ notif.emailDeliveryStatus }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- DRIVER TELEMETRY -->
+            <div class="driver-info-bar">
+              <span class="driver-tag">👨‍✈️ Driver: <strong>{{ notif.driverName }}</strong></span>
+              <span class="phone-tag">📞 {{ notif.driverPhone }}</span>
+              <span class="sla-tag">🛡️ Shift Handover Grace: <strong>Active</strong></span>
+            </div>
+
+            <!-- ACTION BUTTONS -->
+            <div class="delay-card-actions">
+              <button type="button" class="btn-view-email" (click)="openEmailModal(notif)">
+                ✉️ View Full Dispatched Email
+              </button>
+
+              <button 
+                type="button" 
+                class="btn-ack"
+                *ngIf="!notif.acknowledged"
+                (click)="acknowledgeNotification(notif)">
+                ✓ Acknowledge Alert
+              </button>
+
+              <a [href]="'tel:' + notif.driverPhone" class="btn-call-driver">
+                📞 Call Driver
+              </a>
+
+              <a [routerLink]="['/employees']" [queryParams]="{ stwid: notif.stwid }" class="btn-view-rider">
+                👤 Rider Commute History
+              </a>
+            </div>
+          </div>
         </div>
       </section>
     </ng-container>
@@ -484,5 +738,62 @@
         </div>
       </section>
     </ng-container>
+
+    <!-- FULL DISPATCHED EMAIL VIEWER MODAL -->
+    <div class="email-modal-backdrop" *ngIf="selectedEmailModal" (click)="closeEmailModal()">
+      <div class="email-modal-card" (click)="$event.stopPropagation()">
+        <div class="email-modal-header">
+          <div class="header-left">
+            <span class="email-mailer-icon">✉️</span>
+            <div>
+              <h3>MoveInSync Telemetry Alert Mailer</h3>
+              <small>Automated Emergency Commute Dispatch</small>
+            </div>
+          </div>
+          <button type="button" class="btn-close-modal" (click)="closeEmailModal()" title="Close Memo">✕</button>
+        </div>
+
+        <div class="email-meta-table">
+          <div class="meta-row">
+            <span class="meta-label">From:</span>
+            <span class="meta-val">MoveInSync Automated Alert System &lt;alerts&#64;moveinsync.corp&gt;</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">To:</span>
+            <span class="meta-val"><strong>{{ selectedEmailModal.emailRecipient }}</strong> (Line Manager: {{ dashboardData?.managerName }})</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Dispatched:</span>
+            <span class="meta-val">{{ selectedEmailModal.emailDispatchedAt }} • <span class="delivery-verified">🟢 Delivered to Inbox (0ms latency)</span></span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Subject:</span>
+            <span class="meta-val subject-highlight">{{ selectedEmailModal.emailSubject }}</span>
+          </div>
+        </div>
+
+        <div class="email-body-wrapper">
+          <pre class="email-body-pre">{{ selectedEmailModal.emailBody }}</pre>
+        </div>
+
+        <div class="email-modal-footer">
+          <div class="footer-left">
+            <span class="sec-badge">🔒 End-to-End Enterprise Delivery Logged</span>
+          </div>
+          <div class="footer-actions">
+            <button 
+              type="button" 
+              class="btn-ack-in-modal" 
+              *ngIf="!selectedEmailModal.acknowledged" 
+              (click)="acknowledgeNotification(selectedEmailModal)">
+              ✓ Acknowledge Alert Receipt
+            </button>
+            <button type="button" class="btn-close-in-modal" (click)="closeEmailModal()">
+              Close Memo
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 </div>
