@@ -103,6 +103,29 @@ export interface SlaShieldResponse {
   sampleAnalyzedTrips: TripAttributionDetail[];
 }
 
+export interface VendorDisputeItem {
+  disputeId: string;
+  vendorName: string;
+  route: string;
+  claimSubject: string;
+  claimText: string;
+  month: string;
+  businessUnit: string;
+  affectedCabs: number;
+  status: string;
+  submittedAt: string;
+}
+
+export interface DeduplicationReportResponse {
+  totalRowsParsed: number;
+  newRecordsSaved: number;
+  duplicatesMerged: number;
+  dedupeEfficiencyRate: number;
+  datasetType: string;
+  status: string;
+  message: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -139,6 +162,32 @@ export class ApiService {
       vendorName,
       selectedMonth: month,
       businessUnit
+    });
+  }
+
+  getVendorDisputes(month?: string, businessUnit?: string, vendorName?: string, status?: string): Observable<VendorDisputeItem[]> {
+    let url = `${this.apiUrl}/vendors/disputes`;
+    const params: string[] = [];
+    if (month) params.push(`month=${encodeURIComponent(month)}`);
+    if (businessUnit) params.push(`businessUnit=${encodeURIComponent(businessUnit)}`);
+    if (vendorName) params.push(`vendorName=${encodeURIComponent(vendorName)}`);
+    if (status) params.push(`status=${encodeURIComponent(status)}`);
+    if (params.length > 0) url += `?${params.join('&')}`;
+    return this.http.get<VendorDisputeItem[]>(url);
+  }
+
+  submitVendorDispute(dispute: VendorDisputeItem): Observable<VendorDisputeItem> {
+    return this.http.post<VendorDisputeItem>(`${this.apiUrl}/vendors/disputes`, dispute);
+  }
+
+  updateDisputeStatus(disputeId: string, status: string): Observable<VendorDisputeItem> {
+    return this.http.post<VendorDisputeItem>(`${this.apiUrl}/vendors/disputes/${encodeURIComponent(disputeId)}/status?status=${encodeURIComponent(status)}`, {});
+  }
+
+  uploadDataset(fileContent: string, datasetType: string): Observable<DeduplicationReportResponse> {
+    return this.http.post<DeduplicationReportResponse>(`${this.apiUrl}/ingest/upload`, {
+      fileContent,
+      datasetType
     });
   }
 

@@ -18,16 +18,19 @@
         (click)="activeTab = 'disputes'">
         AI Claim Assistant
       </button>
+      <a href="/data-upload" class="icon-upload-btn" title="Data Ingestion & Automated Deduplication Engine" aria-label="Data Upload & Dedupe">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </a>
     </nav>
-
-    <div class="route-badge">
-      Route: <code>/vendor-operations</code>
-    </div>
   </header>
 
   <main class="dashboard">
-    <!-- FILTER CONTROL BAR -->
-    <section class="filter-bar">
+    <!-- FILTER CONTROL BAR (VISIBLE ONLY ON VENDOR SCORECARDS TAB) -->
+    <section class="filter-bar" *ngIf="activeTab === 'vendors'">
       <div class="filter-group">
         <label for="monthSelect">📅 Filter Period / Month:</label>
         <select id="monthSelect" [(ngModel)]="selectedMonth" (change)="onFilterChange()" class="filter-select">
@@ -107,7 +110,7 @@
       <!-- PROBLEM 1 SOLUTION: AI DELAY ATTRIBUTION & SLA SHIELD CARD -->
       <section *ngIf="selectedVendor" class="panel full-width sla-shield-panel">
         <div class="panel-header">
-          <h2>🛡️ AI Delay Attribution & SLA Shield Engine (Problem 1 Solution)</h2>
+          <h2>🛡️ AI Delay Attribution & SLA Shield Engine</h2>
           <span class="shield-badge">Powered by Sarvam AI (`sarvam-105b`)</span>
         </div>
 
@@ -316,52 +319,133 @@
           <p class="eyebrow">AGENTIC DISPUTE RESOLUTION</p>
           <h1>Multi-Source AI Dispute Claim Resolver</h1>
           <p class="hero-description">
-            Ingest vendor email claims, parse delay assertions, and automatically cross-reference 
-            against trip logs, GPS traces, and peer vendor data for instant, evidence-backed decisions.
+            Review pending SLA dispute claims submitted by vendors across active operations. 
+            Select any claim to trigger Sarvam AI cross-verification against GPS speed logs, weather stations, and peer vendor data to approve or reject waivers.
           </p>
         </div>
       </section>
 
       <section class="content-grid">
-        <div class="panel">
+        <!-- PENDING VENDOR DISPUTES INBOX -->
+        <div class="panel inbox-panel">
           <div class="panel-header">
-            <h2>Ingest Vendor Email / Claim</h2>
-            <span>Unstructured Input</span>
+            <h2>📥 Pending Vendor Disputes Inbox</h2>
+            <span class="count-badge">{{ pendingDisputes.length }} Pending Claims</span>
           </div>
 
-          <div class="preset-buttons">
-            <button type="button" class="preset-btn" (click)="loadSampleClaim('weather')">🌧️ Rainstorm Claim</button>
-            <button type="button" class="preset-btn" (click)="loadSampleClaim('employee')">⏱️ Rider Late Claim</button>
-            <button type="button" class="preset-btn" (click)="loadSampleClaim('breakdown')">🛠️ Engine Breakdown</button>
+          <div *ngIf="loadingDisputes" class="loading-box">
+            <div class="spinner"></div>
+            <p>Fetching pending vendor disputes from backend...</p>
           </div>
 
-          <textarea class="claim-textarea" [(ngModel)]="emailClaimText" rows="6" placeholder="Type or paste any vendor email claim here..."></textarea>
+          <div *ngIf="disputeError && !loadingDisputes" class="backend-error-banner">
+            <div class="error-icon">⚠️</div>
+            <div class="error-text">
+              <strong>Inbox Sync Failed</strong>
+              <p>{{ disputeError }}</p>
+            </div>
+          </div>
 
-          <button type="button" class="action-btn" (click)="evaluateEmailClaim()" [disabled]="evaluatingClaim">
-            {{ evaluatingClaim ? 'Evaluating Evidence...' : 'Run AI Cross-Verification' }}
-          </button>
+          <div *ngIf="!loadingDisputes && pendingDisputes.length === 0 && !disputeError" class="empty-state-box">
+            <div class="empty-icon">✔</div>
+            <h3>No Pending Vendor Disputes</h3>
+            <p>All vendor SLA dispute claims have been reviewed and resolved.</p>
+          </div>
+
+          <div *ngIf="!loadingDisputes && pendingDisputes.length > 0" class="disputes-list">
+            <div 
+              *ngFor="let disp of pendingDisputes" 
+              class="dispute-item-card"
+              [class.selected]="selectedDispute?.disputeId === disp.disputeId"
+              (click)="selectPendingDispute(disp)">
+              <div class="dispute-card-top">
+                <span class="dispute-id-tag">#{{ disp.disputeId }}</span>
+                <span class="vendor-name-title">{{ disp.vendorName }}</span>
+                <span class="route-tag">{{ disp.route }}</span>
+              </div>
+              <h4 class="dispute-subject">{{ disp.claimSubject }}</h4>
+              <p class="dispute-snippet">{{ disp.claimText | slice:0:110 }}...</p>
+              <div class="dispute-card-footer">
+                <span>🚘 {{ disp.affectedCabs }} cabs affected</span>
+                <span>📅 {{ disp.month }}</span>
+                <span class="status-badge pending">PENDING REVIEW</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- MANUAL CUSTOM CLAIM INPUT COLLAPSIBLE / PRESETS -->
+          <div class="manual-claim-toggle">
+            <details>
+              <summary>➕ Ingest Manual / Custom Vendor Email Claim</summary>
+              <div class="preset-buttons">
+                <button type="button" class="preset-btn" (click)="loadSampleClaim('weather')">🌧️ Rainstorm Claim</button>
+                <button type="button" class="preset-btn" (click)="loadSampleClaim('employee')">⏱️ Rider Late Claim</button>
+                <button type="button" class="preset-btn" (click)="loadSampleClaim('breakdown')">🛠️ Engine Breakdown</button>
+              </div>
+              <textarea class="claim-textarea" [(ngModel)]="emailClaimText" rows="4" placeholder="Type or paste custom vendor claim email here..."></textarea>
+            </details>
+          </div>
         </div>
 
-        <div class="panel">
+        <!-- AI CROSS-VERIFICATION & DECISION WORKSPACE -->
+        <div class="panel verification-panel">
           <div class="panel-header">
-            <h2>AI Evidence & Recommendation Report</h2>
-            <span>Automated Audit Result</span>
+            <h2>🤖 AI Evidence & Verification Workspace</h2>
+            <span *ngIf="selectedDispute" class="selected-id-badge">Selected: #{{ selectedDispute.disputeId }} ({{ selectedDispute.vendorName }})</span>
           </div>
 
+          <!-- CLAIM DETAIL DISPLAY -->
+          <div *ngIf="selectedDispute || emailClaimText" class="active-claim-preview">
+            <div class="preview-header">
+              <span class="label">Raw Vendor Claim Body:</span>
+              <span *ngIf="selectedDispute" class="meta">{{ selectedDispute.route }} | {{ selectedDispute.month }}</span>
+            </div>
+            <div class="claim-text-display">
+              <textarea class="claim-textarea" [(ngModel)]="emailClaimText" rows="5"></textarea>
+            </div>
+          </div>
+
+          <!-- TRIGGER AI AUDIT BUTTON -->
+          <button 
+            type="button" 
+            class="action-btn" 
+            (click)="evaluateEmailClaim()" 
+            [disabled]="evaluatingClaim || !emailClaimText">
+            {{ evaluatingClaim ? '⚡ Running Sarvam AI Cross-Verification...' : '⚡ Run AI Cross-Verification' }}
+          </button>
+
+          <!-- INITIAL EMPTY STATE PLACEHOLDER -->
+          <div *ngIf="!claimEvaluationResult && !evaluatingClaim && !claimError" class="empty-state-box">
+            <div class="empty-icon">🧠</div>
+            <h3>Ready for AI Cross-Verification</h3>
+            <p>Select a pending dispute claim from the inbox on the left and click <strong>"Run AI Cross-Verification"</strong>. Sarvam AI will cross-reference GPS telemetry, weather station API, and peer vendor routes.</p>
+          </div>
+
+          <!-- EVALUATING LOADING -->
           <div *ngIf="evaluatingClaim" class="loading-box">
             <div class="spinner"></div>
-            <p>Analyzing GPS speed logs, weather records & peer vendor trips...</p>
+            <p>Analyzing GPS speed logs, weather records & peer vendor trips with Sarvam AI (`sarvam-105b`)...</p>
           </div>
 
+          <!-- CLAIM EVALUATION ERROR -->
+          <div *ngIf="claimError && !evaluatingClaim" class="backend-error-banner">
+            <div class="error-icon">⚠️</div>
+            <div class="error-text">
+              <strong>Dispute Evaluation Failed</strong>
+              <p>{{ claimError }}</p>
+            </div>
+          </div>
+
+          <!-- EVALUATION RESULT & DECISION -->
           <div *ngIf="claimEvaluationResult && !evaluatingClaim" class="eval-result-card">
             <div class="recommendation-header" [class.approve]="claimEvaluationResult.claimValid" [class.reject]="!claimEvaluationResult.claimValid">
               <span class="rec-tag" [class.approve-tag]="claimEvaluationResult.claimValid" [class.reject-tag]="!claimEvaluationResult.claimValid">
                 {{ claimEvaluationResult.recommendation }}
               </span>
-              <span class="confidence">Confidence: {{ claimEvaluationResult.confidence }}%</span>
+              <span class="confidence">AI Confidence: {{ claimEvaluationResult.confidence }}%</span>
             </div>
 
-            <p class="reasoning"><strong>Reasoning:</strong> {{ claimEvaluationResult.reasoning }}</p>
+            <p class="reasoning"><strong>Executive Reasoning:</strong> {{ claimEvaluationResult.reasoning }}</p>
 
             <h4>Corroborating Evidence Gathered:</h4>
             <ul class="evidence-list">
@@ -369,8 +453,57 @@
                 <span class="check-icon" [class.danger-icon]="!claimEvaluationResult.claimValid">✓</span> {{ ev }}
               </li>
             </ul>
+
+            <!-- CONFIRMATION ACTION BUTTONS FOR ADMIN -->
+            <div class="decision-action-bar">
+              <button type="button" class="decision-btn approve-btn" (click)="confirmWaiverAction('APPROVED')">
+                ✔ Approve Waiver & Exempt SLA Penalty
+              </button>
+              <button type="button" class="decision-btn reject-btn" (click)="confirmWaiverAction('REJECTED')">
+                ✖ Reject Claim & Enforce Penalty
+              </button>
+            </div>
+
+            <div *ngIf="actionConfirmedMessage" class="action-toast-banner">
+              {{ actionConfirmedMessage }}
+            </div>
           </div>
         </div>
+      </section>
+
+      <!-- AUDIT LOG OF PROCESSED CLAIMS -->
+      <section class="panel full-width">
+        <div class="panel-header">
+          <h2>Audit Log of Processed Vendor Dispute Claims</h2>
+          <span>Recorded Decisions</span>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Claim / Dispute ID</th>
+              <th>Vendor Name</th>
+              <th>Route</th>
+              <th>Dispute Context / Result</th>
+              <th>Month</th>
+              <th>Final Decision</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of filteredEvaluatedClaims">
+              <td><code>#{{ item.claimId }}</code></td>
+              <td>{{ item.vendorName }}</td>
+              <td>{{ item.route }}</td>
+              <td class="reason-cell">{{ item.reason }}</td>
+              <td>{{ item.date }}</td>
+              <td>
+                <span class="status-pill" [class.verified]="item.status === 'APPROVED'" [class.flagged]="item.status === 'REJECTED'">
+                  {{ item.status === 'APPROVED' ? '🛡️ WAIVED & APPROVED' : '⚠️ REJECTED' }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </section>
     </ng-container>
   </main>

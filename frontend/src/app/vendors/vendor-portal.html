@@ -1,0 +1,395 @@
+<div class="portal-shell">
+
+  <!-- ==================== LOGIN VIEW ==================== -->
+  <div *ngIf="!isLoggedIn" class="login-wrapper">
+    <div class="login-card">
+      <div class="brand-badge">MOVEINSYNC MOBILITY</div>
+      <h1>Vendor Self-Service Portal</h1>
+      <p class="login-subtitle">
+        Access your vendor performance scorecards, AI-shielded SLA penalty protection audits, 
+        pre-audit billing logs, and submit penalty dispute appeals.
+      </p>
+
+      <div class="form-group">
+        <label for="vendorSelect">🏢 Select Vendor Account:</label>
+        <select id="vendorSelect" [(ngModel)]="selectedVendorName" class="vendor-dropdown">
+          <option *ngFor="let v of vendorOptions" [value]="v">{{ v }}</option>
+        </select>
+      </div>
+
+      <button type="button" class="login-btn" (click)="login()">
+        Login to Vendor Portal ➔
+      </button>
+
+      <div class="quick-demo-section">
+        <span>Quick Demo Login:</span>
+        <div class="quick-chips">
+          <button type="button" class="chip" (click)="selectedVendorName = 'Rohan Mikhailov Travel'; login()">Rohan Mikhailov</button>
+          <button type="button" class="chip" (click)="selectedVendorName = 'Meera Pavlov Travel'; login()">Meera Pavlov</button>
+          <button type="button" class="chip" (click)="selectedVendorName = 'Sanjay Mikhailov Travel'; login()">Sanjay Mikhailov</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==================== LOGGED IN DASHBOARD VIEW ==================== -->
+  <ng-container *ngIf="isLoggedIn">
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand">MoveInSync | Vendor Portal</div>
+        <div class="subtitle">Self-Service Operations & SLA Protection Engine</div>
+      </div>
+
+      <nav class="nav-tabs">
+        <button 
+          type="button" 
+          [class.active]="activeTab === 'performance'" 
+          (click)="activeTab = 'performance'">
+          Performance & AI SLA Shield
+        </button>
+        <button 
+          type="button" 
+          [class.active]="activeTab === 'disputes'" 
+          (click)="activeTab = 'disputes'">
+          Submit & Track SLA Disputes
+        </button>
+      </nav>
+
+      <div class="user-block">
+        <span class="user-badge">🏢 <strong>{{ loggedInVendor }}</strong></span>
+        <button type="button" class="logout-btn" (click)="logout()">Switch Vendor / Logout</button>
+      </div>
+    </header>
+
+    <main class="dashboard">
+      <!-- FILTER CONTROL BAR -->
+      <section class="filter-bar">
+        <div class="filter-group">
+          <label for="monthSelect">📅 Filter Period / Month:</label>
+          <select id="monthSelect" [(ngModel)]="selectedMonth" (change)="onFilterChange()" class="filter-select">
+            <option *ngFor="let m of availableMonths" [value]="m">{{ m }}</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label for="buSelect">🏢 Business Unit / Client:</label>
+          <select id="buSelect" [(ngModel)]="selectedBusinessUnit" (change)="onFilterChange()" class="filter-select">
+            <option *ngFor="let bu of availableBusinessUnits" [value]="bu">{{ bu }}</option>
+          </select>
+        </div>
+
+        <div class="active-filter-badge">
+          Portal View for: <strong>{{ loggedInVendor }}</strong> ({{ selectedMonth }})
+        </div>
+      </section>
+
+      <!-- BACKEND DISCONNECTED ERROR ALERT -->
+      <div *ngIf="backendError" class="backend-error-banner">
+        <div class="error-icon">⚠️</div>
+        <div class="error-text">
+          <strong>Backend Connection Failed</strong>
+          <p>{{ backendError }}</p>
+        </div>
+        <button type="button" class="retry-btn" (click)="loadVendorPortalData()">Retry Connection</button>
+      </div>
+
+
+      <!-- TAB 1: PERFORMANCE & AI SLA SHIELD -->
+      <ng-container *ngIf="activeTab === 'performance' && !backendError">
+        <!-- VENDOR SUMMARY METRICS HERO -->
+        <section class="hero-card">
+          <div>
+            <p class="eyebrow">VENDOR ACCOUNT: {{ loggedInVendor | uppercase }}</p>
+            <h1>Monthly SLA Performance & Audit Dashboard</h1>
+            <p class="hero-description">
+              View your real-time on-time arrival metrics, Sarvam AI delay attributions protecting you from employee-fault penalties, and pre-audit invoice verifications.
+            </p>
+          </div>
+
+          <div *ngIf="vendorScorecard" class="vendor-header-metrics">
+            <div class="stat-pill success">
+              <span>On-Time Arrival</span>
+              <strong>{{ vendorScorecard.onTimeArrivalPercentage }}%</strong>
+              <small>Target: {{ vendorScorecard.slaTargetPercentage }}%</small>
+            </div>
+            <div class="stat-pill info">
+              <span>Billing Accuracy</span>
+              <strong>{{ vendorScorecard.billingAccuracyPercentage }}%</strong>
+              <small>Pre-audit verified</small>
+            </div>
+            <div class="stat-pill warning">
+              <span>Driver Rating</span>
+              <strong>★ {{ vendorScorecard.averageDriverRating }}</strong>
+              <small>Employee feedback</small>
+            </div>
+          </div>
+        </section>
+
+        <!-- AI SLA SHIELD ATTRIBUTION AUDIT -->
+        <section class="panel full-width sla-shield-panel">
+          <div class="panel-header">
+            <h2>🛡️ AI SLA Protection & Delay Attribution Engine</h2>
+            <span class="shield-badge">Powered by Sarvam AI (`sarvam-105b`)</span>
+          </div>
+
+          <div *ngIf="runningShieldAudit" class="loading-box">
+            <div class="spinner"></div>
+            <p>Running Sarvam AI Delay Attribution Audit for <strong>{{ loggedInVendor }}</strong>...</p>
+          </div>
+
+          <div *ngIf="shieldError && !runningShieldAudit" class="backend-error-banner">
+            <div class="error-icon">⚠️</div>
+            <div class="error-text">
+              <strong>SLA Shield Audit Unavailable</strong>
+              <p>{{ shieldError }}</p>
+            </div>
+          </div>
+
+          <ng-container *ngIf="!runningShieldAudit && slaShieldResult">
+            <!-- RAW vs ADJUSTED OTA COMPARISON -->
+            <div class="shield-summary-grid">
+              <div class="shield-metric-box danger">
+                <span>Raw Unadjusted OTA</span>
+                <strong>{{ slaShieldResult.rawOtaPercentage }}%</strong>
+                <small>Includes all trip delays</small>
+              </div>
+
+              <div class="shield-arrow">➔</div>
+
+              <div class="shield-metric-box success">
+                <span>AI-Shielded Adjusted SLA</span>
+                <strong>{{ slaShieldResult.adjustedSlaPercentage }}%</strong>
+                <small>Exempts Employee & Traffic delays</small>
+              </div>
+
+              <div class="shield-metric-box savings">
+                <span>Unfair Penalties Shielded</span>
+                <strong>${{ slaShieldResult.savedPenaltyAmount | number:'1.2-2' }}</strong>
+                <small>Protected vendor margin</small>
+              </div>
+            </div>
+
+            <!-- SARVAM AI REASONING -->
+            <div class="sarvam-reasoning-box">
+              <h4>🇮🇳 Sarvam AI Attribution Executive Summary</h4>
+              <p>{{ slaShieldResult.sarvamAiAttributionAnalysis }}</p>
+            </div>
+
+            <!-- TRIP-LEVEL ATTRIBUTION TABLE -->
+            <div class="table-container">
+              <h4>Trip-Level Delay Attribution Log for {{ loggedInVendor }}</h4>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Trip ID</th>
+                    <th>Scheduled Pickup</th>
+                    <th>Actual Pickup</th>
+                    <th>Employee Boarded</th>
+                    <th>Delay</th>
+                    <th>Delay Attribution</th>
+                    <th>Evidence Reasoning</th>
+                    <th>Penalty Exemption</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let trip of slaShieldResult.sampleAnalyzedTrips">
+                    <td><code>#{{ trip.tripId }}</code></td>
+                    <td>{{ trip.pickupTimeScheduled }}</td>
+                    <td>{{ trip.pickupTimeActual }}</td>
+                    <td>{{ trip.employeeBoardedTime }}</td>
+                    <td><strong class="danger-text">{{ trip.totalDelayMinutes }} mins</strong></td>
+                    <td>
+                      <span class="attr-pill" [class.emp]="trip.delayCategory === 'EMPLOYEE_FAULT'" [class.vendor]="trip.delayCategory === 'VENDOR_FAULT'" [class.traffic]="trip.delayCategory === 'TRAFFIC_FAULT'">
+                        {{ trip.delayCategory }}
+                      </span>
+                    </td>
+                    <td class="reason-cell">{{ trip.attributionReason }}</td>
+                    <td>
+                      <span class="shield-pill" [class.exempt]="trip.penaltyExempt" [class.penalized]="!trip.penaltyExempt">
+                        <span class="pill-icon">{{ trip.penaltyExempt ? '🛡️' : '⚠️' }}</span>
+                        <span>{{ trip.penaltyExempt ? 'EXEMPT' : 'PENALIZED' }}</span>
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </ng-container>
+        </section>
+
+        <!-- PRE-AUDIT INVOICE DISCREPANCIES & SAFETY ALERTS -->
+        <section *ngIf="vendorScorecard" class="content-grid">
+          <!-- BILLING DISCREPANCIES PANEL -->
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Pre-Audit Invoicing Discrepancies</h2>
+              <span>Flagged Items: {{ vendorScorecard.billingDiscrepanciesCount }}</span>
+            </div>
+
+            <table class="data-table" *ngIf="vendorScorecard.billingDiscrepancies.length > 0; else noBilling">
+              <thead>
+                <tr>
+                  <th>Trip ID</th>
+                  <th>Billed Km</th>
+                  <th>GPS Km</th>
+                  <th>Billed Cost</th>
+                  <th>Expected</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of vendorScorecard.billingDiscrepancies">
+                  <td><code>#{{ item.tripId }}</code></td>
+                  <td>{{ item.billedKm }} km</td>
+                  <td>{{ item.gpsActualKm }} km</td>
+                  <td>\${{ item.billedCost | number:'1.2-2' }}</td>
+                  <td>\${{ item.auditExpectedCost | number:'1.2-2' }}</td>
+                  <td>
+                    <span class="status-pill" [class.flagged]="item.status === 'FLAGGED'" [class.verified]="item.status === 'VERIFIED'">
+                      {{ item.status }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <ng-template #noBilling>
+              <div class="empty-state success-text">
+                ✔ All invoice line items match GPS actual distance logs for {{ selectedMonth }}.
+              </div>
+            </ng-template>
+          </div>
+
+          <!-- COMPLIANCE & SAFETY ALERTS -->
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Safety & Vehicle Compliance Alerts</h2>
+              <span class="danger-text">{{ vendorScorecard.nonCompliantTrips }} Alerts Flagged</span>
+            </div>
+
+            <div class="alert-list" *ngIf="vendorScorecard.complianceAlerts.length > 0; else noAlerts">
+              <div *ngFor="let alert of vendorScorecard.complianceAlerts" class="alert-item">
+                <div class="alert-severity" [class.sev1]="alert.severity === 'Sev-1'" [class.sev2]="alert.severity === 'Sev-2'">
+                  {{ alert.severity }}
+                </div>
+                <div class="alert-details">
+                  <strong>{{ alert.alertType }}</strong>
+                  <p>Cab: <code>{{ alert.vehicleReg }}</code> | Driver: {{ alert.driverName }}</p>
+                  <small>{{ alert.timestamp }}</small>
+                </div>
+              </div>
+            </div>
+            <ng-template #noAlerts>
+              <div class="empty-state success-text">
+                ✔ Zero safety or compliance violations recorded for your cabs in {{ selectedMonth }}.
+              </div>
+            </ng-template>
+          </div>
+        </section>
+      </ng-container>
+
+
+      <!-- TAB 2: SUBMIT & TRACK SLA PENALTY DISPUTES -->
+      <ng-container *ngIf="activeTab === 'disputes'">
+        <section class="hero-card">
+          <div>
+            <p class="eyebrow">SLA DISPUTE RESOLUTION PORTAL</p>
+            <h1>Raise & Track SLA Penalty Waiver Claims</h1>
+            <p class="hero-description">
+              Submit dispute appeals for delays caused by heavy weather, late employee boarding, or traffic bottlenecks. 
+              MoveInSync AI will cross-verify your claims against GPS telemetry and peer vendor data.
+            </p>
+          </div>
+        </section>
+
+        <section class="content-grid">
+          <!-- SUBMIT DISPUTE FORM PANEL -->
+          <div class="panel">
+            <div class="panel-header">
+              <h2>✍️ Raise New SLA Penalty Dispute</h2>
+              <span>Submit to MoveInSync Admin</span>
+            </div>
+
+            <div class="preset-buttons">
+              <button type="button" class="preset-btn" (click)="loadSampleClaimTemplate('rain')">🌧️ Rainstorm Template</button>
+              <button type="button" class="preset-btn" (click)="loadSampleClaimTemplate('rider')">⏱️ Rider Late Template</button>
+              <button type="button" class="preset-btn" (click)="loadSampleClaimTemplate('traffic')">🚧 Traffic Gate Template</button>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="routeInput">Affected Route:</label>
+                <input id="routeInput" type="text" [(ngModel)]="newDisputeRoute" placeholder="e.g. Route 4" class="form-input">
+              </div>
+
+              <div class="form-group">
+                <label for="cabsInput">Affected Cabs Count:</label>
+                <input id="cabsInput" type="number" [(ngModel)]="newDisputeCabs" min="1" max="50" class="form-input">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="subjectInput">Dispute Claim Subject:</label>
+              <input id="subjectInput" type="text" [(ngModel)]="newDisputeSubject" placeholder="e.g. Heavy Rainstorm Delay Waiver Appeal" class="form-input">
+            </div>
+
+            <div class="form-group">
+              <label for="textInput">Detailed Unstructured Claim / Evidence Text:</label>
+              <textarea id="textInput" class="claim-textarea" [(ngModel)]="newDisputeClaimText" rows="5" placeholder="Explain the delay cause, timestamps, cab registration numbers, and weather/traffic conditions..."></textarea>
+            </div>
+
+            <button type="button" class="action-btn" (click)="submitNewDispute()" [disabled]="submittingDispute">
+              {{ submittingDispute ? 'Submitting Dispute...' : '🚀 Submit Dispute Claim to Admin' }}
+            </button>
+
+            <div *ngIf="disputeSubmittedSuccess" class="action-toast-banner">
+              {{ disputeSubmittedSuccess }}
+            </div>
+
+            <div *ngIf="disputeSubmitError" class="error-toast-banner">
+              {{ disputeSubmitError }}
+            </div>
+          </div>
+
+          <!-- MY DISPUTES HISTORY PANEL -->
+          <div class="panel">
+            <div class="panel-header">
+              <h2>📋 My Submitted Dispute Claims History</h2>
+              <span class="count-badge">{{ vendorDisputes.length }} Total Claims</span>
+            </div>
+
+            <div *ngIf="loadingDisputes" class="loading-box">
+              <div class="spinner"></div>
+              <p>Fetching dispute history for {{ loggedInVendor }}...</p>
+            </div>
+
+            <div *ngIf="!loadingDisputes && vendorDisputes.length === 0" class="empty-state-box">
+              <div class="empty-icon">📂</div>
+              <h3>No Dispute Claims Found</h3>
+              <p>You haven't submitted any SLA penalty dispute claims for {{ loggedInVendor }}. Use the form on the left to submit a new claim.</p>
+            </div>
+
+            <div *ngIf="!loadingDisputes && vendorDisputes.length > 0" class="vendor-disputes-list">
+              <div *ngFor="let disp of vendorDisputes" class="dispute-history-card">
+                <div class="history-card-header">
+                  <span class="disp-id">#{{ disp.disputeId }}</span>
+                  <span class="route-badge">{{ disp.route }}</span>
+                  <span class="status-pill" [class.pending]="disp.status === 'PENDING_REVIEW'" [class.verified]="disp.status === 'APPROVED'" [class.flagged]="disp.status === 'REJECTED'">
+                    {{ disp.status === 'PENDING_REVIEW' ? '⏳ PENDING REVIEW' : disp.status === 'APPROVED' ? '🛡️ WAIVED' : '⚠️ REJECTED' }}
+                  </span>
+                </div>
+                <h4>{{ disp.claimSubject }}</h4>
+                <p class="claim-snippet">{{ disp.claimText | slice:0:140 }}...</p>
+                <div class="history-card-footer">
+                  <span>🚘 {{ disp.affectedCabs }} Cabs</span>
+                  <span>📅 {{ disp.submittedAt }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </ng-container>
+    </main>
+  </ng-container>
+
+</div>
