@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: moveinsync-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: moveinsync
+      POSTGRES_USER: moveinsync
+      POSTGRES_PASSWORD: moveinsync_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - moveinsync_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  moveinsync_postgres_data:

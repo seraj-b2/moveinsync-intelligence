@@ -1,0 +1,33 @@
+# Java / Gradle
+.gradle/
+build/
+out/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Spring Boot
+*.log
+
+# Environment and secrets
+.env
+.env.*
+application-local.properties
+application-local.yml
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+.cache/
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test and temporary files
+*.tmp
+*.temp

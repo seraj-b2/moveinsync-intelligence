@@ -1,0 +1,154 @@
+<!-- <div style="background: yellow; color: black; padding: 20px;">
+  API TEST:
+  {{ dashboard.totalTrips }}
+  |
+  {{ dashboard.activeVehicles }}
+  |
+  {{ backendStatus }}
+</div> -->
+<div class="page-shell">
+  <header class="topbar">
+    <div>
+      <div class="brand">MoveInSync</div>
+      <div class="subtitle">Mobility Intelligence Platform</div>
+    </div>
+
+    <div class="environment">
+      <span class="status-dot"></span>
+      Local Development
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <section class="hero-card">
+      <div>
+        <p class="eyebrow">INTELLIGENCE COMMAND CENTER</p>
+        <h1>MoveInSync Intelligence</h1>
+        <p class="hero-description">
+          A unified platform for mobility analytics, operational insights,
+          document processing, and intelligent decision-making.
+        </p>
+      </div>
+
+      <div class="hero-badge">
+        <span>AI</span>
+        Intelligence Ready
+      </div>
+    </section>
+
+    <section class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Total Trips</div>
+        <div class="metric-value">
+          {{ dashboard.totalTrips }}
+        </div>
+        <div class="metric-caption">Trips processed today</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label">Active Vehicles</div>
+        <div class="metric-value">
+          {{ dashboard.activeVehicles }}
+        </div>
+        <div class="metric-caption">Vehicles currently active</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label">On-Time Performance</div>
+        <div class="metric-value success">
+          {{ dashboard.onTimePercentage }}%
+        </div>
+        <div class="metric-caption">Successful on-time trips</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label">Delayed Trips</div>
+        <div class="metric-value danger">
+          {{ dashboard.delayedTrips }}
+        </div>
+        <div class="metric-caption">Trips requiring attention</div>
+      </div>
+    </section>
+
+    <section class="content-grid">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Operational Overview</h2>
+          <span>Live API data</span>
+            <button type="button" class="refresh-button" (click)="refreshDashboard()">
+              Refresh Data
+            </button>
+        </div>
+
+        <div class="module-list">
+          <div class="module-item">
+            <div class="module-icon">01</div>
+            <div>
+              <h3>Employees Transported</h3>
+              <p>
+                {{ dashboard.employeesTransported }}
+                employees transported through the mobility network.
+              </p>
+            </div>
+          </div>
+
+          <div class="module-item">
+            <div class="module-icon">02</div>
+            <div>
+              <h3>Route Utilization</h3>
+              <p>
+                Current route utilization is
+                {{ dashboard.routeUtilization }}%.
+              </p>
+            </div>
+          </div>
+
+          <div class="module-item">
+            <div class="module-icon">03</div>
+            <div>
+              <h3>Delayed Trips</h3>
+              <p>
+                {{ dashboard.delayedTrips }}
+                trips are currently marked for operational review.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>System Connectivity</h2>
+          <span>Live check</span>
+        </div>
+
+        <div class="connection-row">
+          <span>Angular Frontend</span>
+          <strong class="success">Connected</strong>
+        </div>
+
+        <div class="connection-row">
+          <span>Spring Boot API</span>
+          <strong [class.success]="backendStatus === 'UP'" [class.danger]="backendStatus === 'DOWN'">
+            {{ backendStatus }}
+          </strong>
+        </div>
+
+        <div class="connection-row">
+          <span>Health Endpoint</span>
+          <strong>/api/health</strong>
+        </div>
+
+        <div class="connection-row">
+          <span>Dashboard Endpoint</span>
+          <strong>/api/dashboard/summary</strong>
+        </div>
+
+        <div class="connection-row">
+          <span>API Port</span>
+          <strong>8080</strong>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
