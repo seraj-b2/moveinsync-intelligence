@@ -2,10 +2,7 @@ package com.moveinsync.intelligence.controller;
 
 import com.moveinsync.intelligence.dto.VendorScorecardResponse;
 import com.moveinsync.intelligence.service.VendorService;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -21,7 +18,10 @@ public class VendorController {
     }
 
     @GetMapping("/scorecards")
-    public List<VendorScorecardResponse> getVendorScorecards() {
-        return vendorService.getVendorScorecards();
+    public List<VendorScorecardResponse> getVendorScorecards(
+            @RequestParam(required = false) String month,
+            @RequestParam(required = false) String businessUnit
+    ) {
+        return vendorService.getVendorScorecards(month, businessUnit);
     }
 }

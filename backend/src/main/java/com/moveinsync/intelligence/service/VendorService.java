@@ -11,17 +11,13 @@ import java.util.List;
 @Service
 public class VendorService {
 
-    public List<VendorScorecardResponse> getVendorScorecards() {
+    public List<VendorScorecardResponse> getVendorScorecards(String month, String businessUnit) {
+        String filterMonth = (month == null || month.isBlank() || month.equalsIgnoreCase("ALL")) ? "July 2026" : month;
+
+        // Data for Rohan Mikhailov Travel
+        double rohanOta = filterMonth.contains("May") ? 82.1 : filterMonth.contains("June") ? 85.0 : 78.4;
         VendorSlaDetail rMikhailovSla = new VendorSlaDetail(
-                "July 2026", "Rohan Mikhailov Travel", 78.4, 90.0, 42150, 4810, 2340, 1980
-        );
-
-        VendorSlaDetail mPavlovSla = new VendorSlaDetail(
-                "July 2026", "Meera Pavlov Travel", 92.1, 90.0, 38400, 1420, 1200, 410
-        );
-
-        VendorSlaDetail sMikhailovSla = new VendorSlaDetail(
-                "July 2026", "Sanjay Mikhailov Travel", 84.7, 90.0, 31200, 2890, 1150, 720
+                filterMonth, "Rohan Mikhailov Travel", rohanOta, 90.0, 42150, 4810, 2340, 1980
         );
 
         BillingAuditDetail audit1 = new BillingAuditDetail(
@@ -34,47 +30,59 @@ public class VendorService {
                 "Billing matched GPS logs within SLA tolerance", "VERIFIED"
         );
 
-        BillingAuditDetail audit3 = new BillingAuditDetail(
-                "1098442", "Meera Pavlov Travel", 52.0, 51.5, 1650.00, 1650.00,
-                "Verified rate slab & kilometer log", "VERIFIED"
-        );
-
         ComplianceAlertDetail comp1 = new ComplianceAlertDetail(
                 "ALT-9042", "Rohan Mikhailov Travel", "KA-01-MJ-4821", "Rajesh Kumar",
-                "DRIVER_NON_COMPLIANT", "Sev-1", "July 12, 2026 08:15 AM"
+                "DRIVER_NON_COMPLIANT", "Sev-1", filterMonth + " 08:15 AM"
         );
 
         ComplianceAlertDetail comp2 = new ComplianceAlertDetail(
                 "ALT-8812", "Rohan Mikhailov Travel", "KA-05-MB-1102", "Suresh Naik",
-                "OVERSPEEDING", "Sev-2", "July 14, 2026 10:30 PM"
-        );
-
-        ComplianceAlertDetail comp3 = new ComplianceAlertDetail(
-                "ALT-7741", "Sanjay Mikhailov Travel", "KA-03-MK-9910", "Amit Patel",
-                "VEHICLE_PERMIT_EXPIRED", "Sev-1", "July 15, 2026 06:45 AM"
+                "OVERSPEEDING", "Sev-2", filterMonth + " 10:30 PM"
         );
 
         VendorScorecardResponse rohanMikhailov = new VendorScorecardResponse(
                 "Rohan Mikhailov Travel",
-                78.4, 90.0, 88.5, 82.3, 3.8,
+                rohanOta, 90.0, 88.5, 82.3, 3.8,
                 42150, 9130, 484, 124,
                 List.of(rMikhailovSla),
                 List.of(audit1, audit2),
                 List.of(comp1, comp2)
         );
 
+        // Data for Meera Pavlov Travel
+        double meeraOta = filterMonth.contains("May") ? 89.5 : filterMonth.contains("June") ? 91.0 : 92.1;
+        VendorSlaDetail mPavlovSla = new VendorSlaDetail(
+                filterMonth, "Meera Pavlov Travel", meeraOta, 90.0, 38400, 1420, 1200, 410
+        );
+
+        BillingAuditDetail audit3 = new BillingAuditDetail(
+                "1098442", "Meera Pavlov Travel", 52.0, 51.5, 1650.00, 1650.00,
+                "Verified rate slab & kilometer log", "VERIFIED"
+        );
+
         VendorScorecardResponse meeraPavlov = new VendorScorecardResponse(
                 "Meera Pavlov Travel",
-                92.1, 90.0, 97.2, 98.6, 4.7,
+                meeraOta, 90.0, 97.2, 98.6, 4.7,
                 38400, 3030, 107, 12,
                 List.of(mPavlovSla),
                 List.of(audit3),
                 List.of()
         );
 
+        // Data for Sanjay Mikhailov Travel
+        double sanjayOta = filterMonth.contains("May") ? 81.0 : filterMonth.contains("June") ? 83.5 : 84.7;
+        VendorSlaDetail sMikhailovSla = new VendorSlaDetail(
+                filterMonth, "Sanjay Mikhailov Travel", sanjayOta, 90.0, 31200, 2890, 1150, 720
+        );
+
+        ComplianceAlertDetail comp3 = new ComplianceAlertDetail(
+                "ALT-7741", "Sanjay Mikhailov Travel", "KA-03-MK-9910", "Amit Patel",
+                "VEHICLE_PERMIT_EXPIRED", "Sev-1", filterMonth + " 06:45 AM"
+        );
+
         VendorScorecardResponse sanjayMikhailov = new VendorScorecardResponse(
                 "Sanjay Mikhailov Travel",
-                84.7, 90.0, 91.4, 93.1, 4.2,
+                sanjayOta, 90.0, 91.4, 93.1, 4.2,
                 31200, 4760, 268, 38,
                 List.of(sMikhailovSla),
                 List.of(),

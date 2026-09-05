@@ -79,7 +79,12 @@ export class ApiService {
     return this.http.get<DashboardSummary>(`${this.apiUrl}/dashboard/summary`);
   }
 
-  getVendorScorecards(): Observable<VendorScorecard[]> {
-    return this.http.get<VendorScorecard[]>(`${this.apiUrl}/vendors/scorecards`);
+  getVendorScorecards(month?: string, businessUnit?: string): Observable<VendorScorecard[]> {
+    let url = `${this.apiUrl}/vendors/scorecards`;
+    const params: string[] = [];
+    if (month) params.push(`month=${encodeURIComponent(month)}`);
+    if (businessUnit) params.push(`businessUnit=${encodeURIComponent(businessUnit)}`);
+    if (params.length > 0) url += `?${params.join('&')}`;
+    return this.http.get<VendorScorecard[]>(url);
   }
 }
