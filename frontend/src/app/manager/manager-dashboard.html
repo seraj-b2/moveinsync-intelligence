@@ -1,0 +1,488 @@
+<div class="page-shell">
+  <header class="topbar">
+    <div class="brand-block">
+      <div class="brand">MoveInSync</div>
+      <div class="subtitle">Manager Operations & Team Mobility Command Center</div>
+    </div>
+
+
+    <nav class="nav-tabs">
+      <button 
+        type="button" 
+        [class.active]="activeTab === 'roster'" 
+        (click)="activeTab = 'roster'">
+        Shift Readiness & Roster
+      </button>
+      <button 
+        type="button" 
+        [class.active]="activeTab === 'safety'" 
+        (click)="activeTab = 'safety'">
+        Team Safety & Escort
+      </button>
+      <button 
+        type="button" 
+        [class.active]="activeTab === 'csat'" 
+        (click)="activeTab = 'csat'">
+        Team CSAT
+      </button>
+      <button 
+        type="button" 
+        [class.active]="activeTab === 'ai-advisor'" 
+        (click)="activeTab = 'ai-advisor'">
+        AI Shift Impact Predictor
+      </button>
+    </nav>
+
+    <div class="user-pill-wrap">
+      <div class="route-badge">
+        Manager: <code>{{ managerId }}</code>
+      </div>
+      <a routerLink="/login" class="sign-out-btn" title="Sign Out to Login Portal">🚪 Sign Out</a>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <!-- MANAGER PROFILE HEADER (NO UI DROPDOWN SELECTOR) -->
+    <section class="manager-profile-banner" *ngIf="dashboardData">
+      <div class="profile-main">
+        <div class="manager-avatar">
+          <span>{{ dashboardData.managerName.charAt(0) }}</span>
+        </div>
+        <div class="manager-info">
+          <div class="manager-title-row">
+            <h2>{{ dashboardData.managerName }}</h2>
+            <span class="manager-id-pill">{{ dashboardData.managerId }}</span>
+            <span class="company-pill">🏢 {{ dashboardData.companyName }}</span>
+            <span class="manager-dept-pill">{{ dashboardData.department }}</span>
+          </div>
+          <p class="manager-sub">{{ dashboardData.title }} • {{ dashboardData.office }}</p>
+        </div>
+      </div>
+
+      <div class="manager-scope-card">
+        <div class="scope-stat">
+          <span>Direct Reports</span>
+          <strong>{{ dashboardData.teamSize }}</strong>
+        </div>
+        <div class="scope-divider"></div>
+        <div class="scope-stat">
+          <span>Team Floor Readiness</span>
+          <strong [class.success-text]="dashboardData.teamReadinessIndex >= 80" [class.warning-text]="dashboardData.teamReadinessIndex < 80">
+            {{ dashboardData.teamReadinessIndex }}%
+          </strong>
+        </div>
+        <div class="scope-divider"></div>
+        <div class="scope-stat">
+          <span>Team CSAT</span>
+          <strong class="gold-text">★ {{ dashboardData.averageCsat }}</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- FILTER CONTROL BAR -->
+    <section class="filter-bar">
+      <div class="filter-group">
+        <label for="monthSelect">📅 Filter Period / Month:</label>
+        <select id="monthSelect" [(ngModel)]="selectedMonth" (change)="onFilterChange()" class="filter-select">
+          <option *ngFor="let m of availableMonths" [value]="m">{{ m }}</option>
+        </select>
+      </div>
+
+      <div class="active-filter-badge">
+        Account: <strong>{{ companyName }}</strong> | Manager: <strong>{{ dashboardData?.managerName }} ({{ managerId }})</strong> | Period: <strong>{{ selectedMonth }}</strong>
+      </div>
+    </section>
+
+    <!-- TAB 1: SHIFT READINESS & ROSTER -->
+    <ng-container *ngIf="activeTab === 'roster' && dashboardData">
+      <section class="hero-card">
+        <div>
+          <p class="eyebrow">{{ dashboardData.department | uppercase }} • LINE MANAGER DISPATCH</p>
+          <h1>Team Shift Readiness: {{ dashboardData.managerName }}</h1>
+          <p class="hero-description">
+            Live shift tracking and commute arrivals strictly for the 
+            <strong>{{ dashboardData.teamSize }} direct reports</strong> assigned to <strong>{{ dashboardData.managerName }}</strong> at <strong>{{ companyName }}</strong> across {{ selectedMonth }}.
+          </p>
+        </div>
+        <div class="hero-badge">
+          <span>AI</span>
+          Manager Agent Active
+        </div>
+      </section>
+
+      <!-- SHIFT SELECTOR ROW -->
+      <section class="shift-selector-grid">
+        <div 
+          *ngFor="let shift of dashboardData.shifts" 
+          class="shift-card"
+          [class.selected]="selectedShift?.shiftId === shift.shiftId"
+          (click)="selectShift(shift)">
+          <div class="shift-card-header">
+            <div>
+              <h3>{{ shift.shiftName }}</h3>
+              <small class="window-text">🕒 {{ shift.timeWindow }}</small>
+            </div>
+            <span class="badge" [class.success]="shift.shiftReadinessIndex >= 80" [class.warning]="shift.shiftReadinessIndex < 80">
+              Readiness: {{ shift.shiftReadinessIndex }}%
+            </span>
+          </div>
+          <div class="shift-mini-stats">
+            <div>
+              <span>Assigned Team</span>
+              <strong>{{ shift.totalDirectReports }}</strong>
+            </div>
+            <div>
+              <span>On-Time Boarding</span>
+              <strong class="success-text">{{ shift.onTimeBoardingPercentage }}%</strong>
+            </div>
+            <div>
+              <span>No-Show Rate</span>
+              <strong [class.danger-text]="shift.noShowRatePercentage > 15">{{ shift.noShowRatePercentage }}%</strong>
+            </div>
+            <div>
+              <span>Team CSAT</span>
+              <strong>★ {{ shift.csatBreakdown.overallCsat }}</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- DETAILED SHIFT METRICS & ROSTER TABLE -->
+      <section *ngIf="selectedShift" class="content-grid">
+        <!-- SHIFT KPIS -->
+        <div class="panel full-width">
+          <div class="panel-header">
+            <h2>{{ selectedShift.shiftName }} — {{ dashboardData.managerName }}'s Shift Health</h2>
+            <span>Operating Site: {{ dashboardData.office }}</span>
+          </div>
+          <div class="metric-summary-row">
+            <div class="stat-box">
+              <span>Direct Reports in Shift</span>
+              <strong>{{ selectedShift.totalDirectReports }}</strong>
+              <small>Under {{ dashboardData.managerName }}</small>
+            </div>
+            <div class="stat-box info">
+              <span>Boarded / Arrived</span>
+              <strong>{{ selectedShift.boardedCount }}</strong>
+              <small>Confirmed present on floor</small>
+            </div>
+            <div class="stat-box danger">
+              <span>Commute No-Shows</span>
+              <strong>{{ selectedShift.noShowCount }}</strong>
+              <small>{{ selectedShift.noShowRatePercentage }}% no-show rate</small>
+            </div>
+            <div class="stat-box success">
+              <span>Shift Readiness Index</span>
+              <strong>{{ selectedShift.shiftReadinessIndex }}%</strong>
+              <small>Target Benchmark: 80.0%</small>
+            </div>
+          </div>
+
+          <!-- PROGRESS BAR -->
+          <div class="attribution-bar-container">
+            <h4>Commute Arrival Distribution for {{ dashboardData.managerName }}'s Team</h4>
+            <div class="attribution-progress">
+              <div class="bar ontime-bar" [style.width.%]="selectedShift.onTimeBoardingPercentage" title="On-Time: {{ selectedShift.onTimeBoardingPercentage }}%">
+                On-Time ({{ selectedShift.onTimeBoardingPercentage }}%)
+              </div>
+              <div class="bar noshow-bar" [style.width.%]="selectedShift.noShowRatePercentage" title="No-Show: {{ selectedShift.noShowRatePercentage }}%">
+                No-Show ({{ selectedShift.noShowRatePercentage }}%)
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DIRECT REPORTS ROSTER TABLE -->
+        <div class="panel full-width">
+          <div class="panel-header table-header-flex">
+            <div>
+              <h2>Direct Reports Roster & Commute Status</h2>
+              <span>Real-time boarding, vehicle registration, and delay attribution</span>
+            </div>
+
+            <!-- FILTER PILLS -->
+            <div class="table-filter-pills">
+              <button type="button" [class.active]="rosterFilter === 'ALL'" (click)="rosterFilter = 'ALL'">
+                All ({{ selectedShift.roster.length }})
+              </button>
+              <button type="button" [class.active]="rosterFilter === 'ON_TIME'" (click)="rosterFilter = 'ON_TIME'">
+                On-Time
+              </button>
+              <button type="button" [class.active]="rosterFilter === 'DELAYED'" (click)="rosterFilter = 'DELAYED'">
+                Delayed
+              </button>
+              <button type="button" [class.active]="rosterFilter === 'NO_SHOW'" (click)="rosterFilter = 'NO_SHOW'">
+                No-Shows
+              </button>
+            </div>
+          </div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Direct Report</th>
+                <th>Role & Site</th>
+                <th>Manager</th>
+                <th>Route & Cab</th>
+                <th>Status</th>
+                <th>Delay</th>
+                <th>Distance (Plan vs Actual)</th>
+                <th>Commute Anomaly / Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of filteredRoster">
+                <td>
+                  <a [routerLink]="['/employee', companyName, item.stwid]" 
+                     class="employee-link" 
+                     title="View {{ item.employeeName }}'s commute activity">
+                    {{ item.employeeName }} <span class="nav-arrow">↗</span>
+                  </a>
+                  <br>
+                  <small class="code-id">{{ item.stwid }} ({{ item.gender }})</small>
+                </td>
+                <td>
+                  <span>{{ item.role }}</span>
+                  <br>
+                  <small class="site-text">{{ item.office }}</small>
+                </td>
+                <td>
+                  <span class="manager-tag">{{ dashboardData.managerName }}</span>
+                  <br>
+                  <small class="code-id">{{ dashboardData.managerId }}</small>
+                </td>
+                <td>
+                  <strong>{{ item.routeId }}</strong>
+                  <br>
+                  <code class="cab-badge">{{ item.cabReg }}</code>
+                </td>
+                <td>
+                  <span class="status-pill" 
+                    [class.verified]="item.pickupStatus === 'ON_TIME'" 
+                    [class.warning-pill]="item.pickupStatus === 'DELAYED'"
+                    [class.flagged]="item.isNoShow">
+                    {{ item.isNoShow ? 'NO_SHOW' : item.pickupStatus }}
+                  </span>
+                </td>
+                <td>
+                  <span [class.danger-text]="item.delayMinutes > 15" [class.success-text]="item.delayMinutes === 0">
+                    {{ item.delayMinutes > 0 ? '+' + item.delayMinutes + ' min' : '0 min' }}
+                  </span>
+                </td>
+                <td>
+                  <span>{{ item.plannedKm }} km plan</span>
+                  <br>
+                  <small [class.warning-text]="item.traveledKm > item.plannedKm + 2">
+                    {{ item.traveledKm }} km actual
+                  </small>
+                </td>
+                <td class="reason-cell">
+                  {{ item.noShowReason || (item.pickupStatus === 'ON_TIME' ? 'Boarded within scheduled pickup window' : 'Cab in transit') }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </ng-container>
+
+    <!-- TAB 2: SAFETY & ESCORT RADAR -->
+    <ng-container *ngIf="activeTab === 'safety' && dashboardData">
+      <section class="hero-card">
+        <div>
+          <p class="eyebrow">TEAM SAFETY PROTOCOLS • {{ dashboardData.managerName | uppercase }}</p>
+          <h1>Safety Alerts for {{ dashboardData.managerName }}'s Direct Reports</h1>
+          <p class="hero-description">
+            Live surveillance of SOS events, female employee security escorts, and route geofence deviations
+            affecting team members reporting to {{ dashboardData.managerName }} at {{ companyName }}.
+          </p>
+        </div>
+        <div class="hero-badge">
+          <span>AI</span>
+          Safety Guardian Active
+        </div>
+      </section>
+
+      <section *ngIf="selectedShift" class="content-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Active Safety Incidents ({{ dashboardData.managerName }}'s Team)</h2>
+            <span class="danger-text">{{ selectedShift.safetyAlerts.length }} Events Monitored</span>
+          </div>
+
+          <div class="alert-list" *ngIf="selectedShift.safetyAlerts.length > 0; else noSafetyAlerts">
+            <div *ngFor="let alert of selectedShift.safetyAlerts" class="alert-item">
+              <div class="alert-severity" [class.sev1]="alert.severity === 'Sev-1'" [class.sev2]="alert.severity === 'Sev-2'" [class.sev3]="alert.severity === 'Sev-3'">
+                {{ alert.severity }}
+              </div>
+              <div class="alert-details">
+                <strong>{{ alert.eventType }}</strong>
+                <p>
+                  Direct Report: <strong>{{ alert.employeeName }}</strong> ({{ alert.stwid }}) | Cab: <code>{{ alert.cabReg }}</code>
+                </p>
+                <p class="action-note">Manager Action: {{ alert.actionRequired }}</p>
+                <small>Timestamp: {{ alert.timestamp }} | Status: <span class="tag-status">{{ alert.stateText }}</span></small>
+              </div>
+            </div>
+          </div>
+          <ng-template #noSafetyAlerts>
+            <div class="empty-state success-text">
+              ✔ Zero safety violations or alerts recorded for {{ dashboardData.managerName }}'s team in {{ selectedMonth }}.
+            </div>
+          </ng-template>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Manager Escalation & Duty of Care Protocol</h2>
+            <span>Automated Protection</span>
+          </div>
+
+          <div class="protocol-card">
+            <div class="protocol-metric">
+              <span class="protocol-score">100%</span>
+              <div>
+                <strong>Night Drop Security Protocol</strong>
+                <p>Security escorts are automatically assigned to female direct reports traveling after 20:00 with trip confirmation.</p>
+              </div>
+            </div>
+
+            <div class="protocol-checklist">
+              <div class="check-item"><span class="check-icon">✓</span> Direct SMS alert delivered to {{ dashboardData.managerName }} on any Sev-1 event</div>
+              <div class="check-item"><span class="check-icon">✓</span> Automated handover grace window if cab delay exceeds 15 minutes</div>
+              <div class="check-item"><span class="check-icon">✓</span> Telemetry coordinates linked in manager notification panel</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </ng-container>
+
+    <!-- TAB 3: CSAT SENTIMENT -->
+    <ng-container *ngIf="activeTab === 'csat' && dashboardData">
+      <section class="hero-card">
+        <div>
+          <p class="eyebrow">TEAM EXPERIENCE • {{ dashboardData.managerName | uppercase }}</p>
+          <h1>Commute Sentiment & CSAT for {{ dashboardData.managerName }}'s Team</h1>
+          <p class="hero-description">
+            Feedback submitted exclusively by direct reports in {{ dashboardData.managerName }}'s team across Driver courtesy,
+            Cab hygiene, Route efficiency, Safety comfort, and Security escort assistance.
+          </p>
+        </div>
+        <div class="hero-badge">
+          <span>AI</span>
+          Sentiment Analyzer Active
+        </div>
+      </section>
+
+      <section *ngIf="selectedShift" class="content-grid">
+        <div class="panel full-width">
+          <div class="panel-header">
+            <h2>Team CSAT Scorecard ({{ dashboardData.managerName }})</h2>
+            <span>{{ selectedShift.csatBreakdown.totalFeedbackCount }} Verified Ratings</span>
+          </div>
+
+          <div class="csat-grid">
+            <div class="csat-card overall">
+              <span>Team Overall CSAT</span>
+              <strong class="csat-number">★ {{ selectedShift.csatBreakdown.overallCsat }}</strong>
+              <small>Benchmark Target: 4.50 / 5.0</small>
+            </div>
+
+            <div class="csat-card">
+              <span>Driver Courtesy</span>
+              <strong>★ {{ selectedShift.csatBreakdown.driverRating }}</strong>
+              <div class="meter-bar"><div class="fill" [style.width.%]="(selectedShift.csatBreakdown.driverRating / 5) * 100"></div></div>
+            </div>
+
+            <div class="csat-card">
+              <span>Cab Cleanliness</span>
+              <strong>★ {{ selectedShift.csatBreakdown.cabRating }}</strong>
+              <div class="meter-bar"><div class="fill" [style.width.%]="(selectedShift.csatBreakdown.cabRating / 5) * 100"></div></div>
+            </div>
+
+            <div class="csat-card">
+              <span>Route Timing</span>
+              <strong>★ {{ selectedShift.csatBreakdown.routeRating }}</strong>
+              <div class="meter-bar"><div class="fill" [style.width.%]="(selectedShift.csatBreakdown.routeRating / 5) * 100"></div></div>
+            </div>
+
+            <div class="csat-card">
+              <span>Safety & Comfort</span>
+              <strong>★ {{ selectedShift.csatBreakdown.safetyRating }}</strong>
+              <div class="meter-bar"><div class="fill" [style.width.%]="(selectedShift.csatBreakdown.safetyRating / 5) * 100"></div></div>
+            </div>
+
+            <div class="csat-card">
+              <span>Marshal Assistance</span>
+              <strong>★ {{ selectedShift.csatBreakdown.marshalRating }}</strong>
+              <div class="meter-bar"><div class="fill" [style.width.%]="(selectedShift.csatBreakdown.marshalRating / 5) * 100"></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </ng-container>
+
+    <!-- TAB 4: AGENTIC AI SHIFT IMPACT ADVISOR -->
+    <ng-container *ngIf="activeTab === 'ai-advisor' && dashboardData">
+      <section class="hero-card">
+        <div>
+          <p class="eyebrow">AGENTIC OPERATIONAL INTELLIGENCE • {{ dashboardData.managerName | uppercase }}</p>
+          <h1>AI Shift Impact Advisor for {{ dashboardData.managerName }}</h1>
+          <p class="hero-description">
+            Senses how transport delays or commute no-shows ripple into {{ dashboardData.managerName }}'s floor readiness,
+            and triggers autonomous mitigations to protect shift SLAs at {{ companyName }}.
+          </p>
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Simulate Shift Incident for {{ dashboardData.managerName }}'s Team</h2>
+            <span>Incident / Telemetry Input</span>
+          </div>
+
+          <textarea class="claim-textarea" [(ngModel)]="simulatedScenario" rows="6"></textarea>
+
+          <button type="button" class="action-btn" (click)="evaluateShiftRisk()" [disabled]="evaluatingShiftRisk">
+            {{ evaluatingShiftRisk ? 'Simulating Team Readiness Ripple...' : 'Run Autonomous Team Impact Analysis' }}
+          </button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Autonomous Mitigation Plan for {{ dashboardData.managerName }}</h2>
+            <span>AI Decision-Support Output</span>
+          </div>
+
+          <div *ngIf="evaluatingShiftRisk" class="loading-box">
+            <div class="spinner"></div>
+            <p>Analyzing direct reports on route, skill criticalities, and backup vehicle fleet...</p>
+          </div>
+
+          <div *ngIf="shiftRiskResult && !evaluatingShiftRisk" class="eval-result-card">
+            <div class="recommendation-header approve">
+              <span class="rec-tag">{{ shiftRiskResult.recommendation }}</span>
+              <span class="confidence">Confidence: {{ shiftRiskResult.confidence }}%</span>
+            </div>
+
+            <p class="reasoning"><strong>Manager & Scope:</strong> {{ shiftRiskResult.managerAssigned }} — {{ shiftRiskResult.teamScope }} ({{ shiftRiskResult.company }})</p>
+            <p class="reasoning"><strong>Floor Readiness Impact:</strong> {{ shiftRiskResult.floorReadinessImpact }}</p>
+            <p class="reasoning"><strong>Impacted Direct Reports:</strong> {{ shiftRiskResult.impactedEmployees.join(', ') }}</p>
+
+            <h4>Autonomous Agent Actions Executed:</h4>
+            <ul class="evidence-list">
+              <li *ngFor="let act of shiftRiskResult.agenticActionsTaken">
+                <span class="check-icon">✓</span> {{ act }}
+              </li>
+            </ul>
+
+            <div class="summary-box">
+              <small>{{ shiftRiskResult.summary }}</small>
+            </div>
+          </div>
+        </div>
+      </section>
+    </ng-container>
+  </main>
+</div>

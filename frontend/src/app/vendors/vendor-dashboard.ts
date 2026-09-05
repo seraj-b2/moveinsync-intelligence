@@ -6,6 +6,7 @@ import {
 } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 
 import {
   ApiService,
@@ -17,7 +18,7 @@ import {
 @Component({
   selector: 'app-vendor-dashboard',
   standalone: true,
-  imports: [CommonModule, DecimalPipe, FormsModule],
+  imports: [CommonModule, DecimalPipe, FormsModule, RouterModule],
   templateUrl: './vendor-dashboard.html',
   styleUrl: './vendor-dashboard.scss'
 })
