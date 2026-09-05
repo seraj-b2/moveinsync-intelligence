@@ -64,6 +64,45 @@ export interface VendorScorecard {
   complianceAlerts: ComplianceAlertDetail[];
 }
 
+export interface ClaimEvaluationResponse {
+  vendorName: string;
+  claimDate: string;
+  route: string;
+  claimValid: boolean;
+  confidence: number;
+  evidence: string[];
+  recommendation: string;
+  reasoning: string;
+}
+
+export interface TripAttributionDetail {
+  tripId: string;
+  employeeId: string;
+  pickupTimeScheduled: string;
+  pickupTimeActual: string;
+  employeeBoardedTime: string;
+  totalDelayMinutes: number;
+  delayCategory: string;
+  attributionReason: string;
+  penaltyExempt: boolean;
+}
+
+export interface SlaShieldResponse {
+  vendorName: string;
+  month: string;
+  rawOtaPercentage: number;
+  adjustedSlaPercentage: number;
+  targetSlaPercentage: number;
+  savedPenaltyAmount: number;
+  totalTrips: number;
+  totalDelayedTrips: number;
+  vendorFaultDelays: number;
+  employeeFaultDelays: number;
+  trafficWeatherDelays: number;
+  sarvamAiAttributionAnalysis: string;
+  sampleAnalyzedTrips: TripAttributionDetail[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -86,5 +125,28 @@ export class ApiService {
     if (businessUnit) params.push(`businessUnit=${encodeURIComponent(businessUnit)}`);
     if (params.length > 0) url += `?${params.join('&')}`;
     return this.http.get<VendorScorecard[]>(url);
+  }
+
+  evaluateVendorClaim(claimText: string, month: string): Observable<ClaimEvaluationResponse> {
+    return this.http.post<ClaimEvaluationResponse>(`${this.apiUrl}/vendors/evaluate-claim`, {
+      claimText,
+      selectedMonth: month
+    });
+  }
+
+  analyzeSlaShield(vendorName: string, month: string, businessUnit?: string): Observable<SlaShieldResponse> {
+    return this.http.post<SlaShieldResponse>(`${this.apiUrl}/vendors/sla-shield/analyze`, {
+      vendorName,
+      selectedMonth: month,
+      businessUnit
+    });
+  }
+
+  getBusinessUnits(): Observable<string[]> {
+    return this.http.get<string[]>(`${this.apiUrl}/vendors/business-units`);
+  }
+
+  getAvailableMonths(): Observable<string[]> {
+    return this.http.get<string[]>(`${this.apiUrl}/vendors/months`);
   }
 }

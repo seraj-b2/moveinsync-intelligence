@@ -9,6 +9,8 @@ import { FormsModule } from '@angular/forms';
 
 import {
   ApiService,
+  ClaimEvaluationResponse,
+  SlaShieldResponse,
   VendorScorecard
 } from '../services/api.service';
 
@@ -25,9 +27,9 @@ export class VendorDashboardComponent implements OnInit {
 
   activeTab: 'vendors' | 'disputes' = 'vendors';
 
-  // Filtering Controls
-  availableMonths = ['July 2026', 'June 2026', 'May 2026', 'All Months'];
-  availableBusinessUnits = ['All Business Units', 'vanta-Aus', 'catalyst-Sac', 'orbit-Slc', 'vanta-Sea', 'pinnacle-Slc'];
+  // Filtering Controls (Loaded dynamically from Backend)
+  availableMonths: string[] = [];
+  availableBusinessUnits: string[] = [];
   
   selectedMonth = 'July 2026';
   selectedBusinessUnit = 'All Business Units';
@@ -35,183 +37,66 @@ export class VendorDashboardComponent implements OnInit {
   vendors: VendorScorecard[] = [];
   selectedVendor: VendorScorecard | null = null;
   loading = true;
+  backendError: string | null = null;
+
+  // SLA Shield State
+  slaShieldResult: SlaShieldResponse | null = null;
+  runningShieldAudit = false;
+  shieldError: string | null = null;
 
   // AI Claim Dispute Assistant state
   emailClaimText = 'Subject: SLA Penalty Dispute - July 10 Rainstorm\nVendor: Rohan Mikhailov Travel\nClaim: Severe rain on July 10th delayed 15 cabs on Route 4. Please waive the SLA penalty.';
-  claimEvaluationResult: any = null;
+  claimEvaluationResult: ClaimEvaluationResponse | null = null;
   evaluatingClaim = false;
-
-  private getFallbackVendors(month: string): VendorScorecard[] {
-    const isMay = month.includes('May');
-    const isJune = month.includes('June');
-
-    const rohanOta = isMay ? 82.1 : isJune ? 85.0 : 78.4;
-    const meeraOta = isMay ? 89.5 : isJune ? 91.0 : 92.1;
-    const sanjayOta = isMay ? 81.0 : isJune ? 83.5 : 84.7;
-
-    return [
-      {
-        vendorName: 'Rohan Mikhailov Travel',
-        onTimeArrivalPercentage: rohanOta,
-        slaTargetPercentage: 90.0,
-        complianceRatePercentage: 88.5,
-        billingAccuracyPercentage: 82.3,
-        averageDriverRating: 3.8,
-        totalTrips: isMay ? 39800 : isJune ? 41200 : 42150,
-        delayedTrips: isMay ? 7120 : isJune ? 6180 : 9130,
-        nonCompliantTrips: 484,
-        billingDiscrepanciesCount: 124,
-        slaBreakdown: [
-          {
-            month: month,
-            vendorName: 'Rohan Mikhailov Travel',
-            actualOta: rohanOta,
-            targetSla: 90.0,
-            totalTrips: 42150,
-            vendorFaultDelays: 4810,
-            employeeFaultDelays: 2340,
-            trafficWeatherDelays: 1980
-          }
-        ],
-        billingDiscrepancies: [
-          {
-            tripId: '1097076',
-            vendorName: 'Rohan Mikhailov Travel',
-            billedKm: 45.2,
-            gpsActualKm: 31.8,
-            billedCost: 1420.00,
-            auditExpectedCost: 1000.00,
-            discrepancyReason: 'Billed distance exceeds GPS tracked distance by 42.1%',
-            status: 'FLAGGED'
-          },
-          {
-            tripId: '1123974',
-            vendorName: 'Rohan Mikhailov Travel',
-            billedKm: 28.0,
-            gpsActualKm: 27.5,
-            billedCost: 850.00,
-            auditExpectedCost: 850.00,
-            discrepancyReason: 'Billing matched GPS logs within SLA tolerance',
-            status: 'VERIFIED'
-          }
-        ],
-        complianceAlerts: [
-          {
-            alertId: 'ALT-9042',
-            vendorName: 'Rohan Mikhailov Travel',
-            vehicleReg: 'KA-01-MJ-4821',
-            driverName: 'Rajesh Kumar',
-            alertType: 'DRIVER_NON_COMPLIANT',
-            severity: 'Sev-1',
-            timestamp: month + ' 08:15 AM'
-          },
-          {
-            alertId: 'ALT-8812',
-            vendorName: 'Rohan Mikhailov Travel',
-            vehicleReg: 'KA-05-MB-1102',
-            driverName: 'Suresh Naik',
-            alertType: 'OVERSPEEDING',
-            severity: 'Sev-2',
-            timestamp: month + ' 10:30 PM'
-          }
-        ]
-      },
-      {
-        vendorName: 'Meera Pavlov Travel',
-        onTimeArrivalPercentage: meeraOta,
-        slaTargetPercentage: 90.0,
-        complianceRatePercentage: 97.2,
-        billingAccuracyPercentage: 98.6,
-        averageDriverRating: 4.7,
-        totalTrips: isMay ? 34200 : isJune ? 36800 : 38400,
-        delayedTrips: 3030,
-        nonCompliantTrips: 107,
-        billingDiscrepanciesCount: 12,
-        slaBreakdown: [
-          {
-            month: month,
-            vendorName: 'Meera Pavlov Travel',
-            actualOta: meeraOta,
-            targetSla: 90.0,
-            totalTrips: 38400,
-            vendorFaultDelays: 1420,
-            employeeFaultDelays: 1200,
-            trafficWeatherDelays: 410
-          }
-        ],
-        billingDiscrepancies: [
-          {
-            tripId: '1098442',
-            vendorName: 'Meera Pavlov Travel',
-            billedKm: 52.0,
-            gpsActualKm: 51.5,
-            billedCost: 1650.00,
-            auditExpectedCost: 1650.00,
-            discrepancyReason: 'Verified rate slab & kilometer log',
-            status: 'VERIFIED'
-          }
-        ],
-        complianceAlerts: []
-      },
-      {
-        vendorName: 'Sanjay Mikhailov Travel',
-        onTimeArrivalPercentage: sanjayOta,
-        slaTargetPercentage: 90.0,
-        complianceRatePercentage: 91.4,
-        billingAccuracyPercentage: 93.1,
-        averageDriverRating: 4.2,
-        totalTrips: isMay ? 28900 : isJune ? 30100 : 31200,
-        delayedTrips: 4760,
-        nonCompliantTrips: 268,
-        billingDiscrepanciesCount: 38,
-        slaBreakdown: [
-          {
-            month: month,
-            vendorName: 'Sanjay Mikhailov Travel',
-            actualOta: sanjayOta,
-            targetSla: 90.0,
-            totalTrips: 31200,
-            vendorFaultDelays: 2890,
-            employeeFaultDelays: 1150,
-            trafficWeatherDelays: 720
-          }
-        ],
-        billingDiscrepancies: [],
-        complianceAlerts: [
-          {
-            alertId: 'ALT-7741',
-            vendorName: 'Sanjay Mikhailov Travel',
-            vehicleReg: 'KA-03-MK-9910',
-            driverName: 'Amit Patel',
-            alertType: 'VEHICLE_PERMIT_EXPIRED',
-            severity: 'Sev-1',
-            timestamp: month + ' 06:45 AM'
-          }
-        ]
-      }
-    ];
-  }
+  claimError: string | null = null;
 
   ngOnInit(): void {
+    this.loadFilterOptions();
     this.loadVendorScorecards();
+  }
+
+  loadFilterOptions(): void {
+    this.apiService.getBusinessUnits().subscribe({
+      next: (units) => {
+        if (units && units.length > 0) {
+          this.availableBusinessUnits = units;
+          this.changeDetectorRef.detectChanges();
+        }
+      }
+    });
+
+    this.apiService.getAvailableMonths().subscribe({
+      next: (months) => {
+        if (months && months.length > 0) {
+          this.availableMonths = months;
+          this.changeDetectorRef.detectChanges();
+        }
+      }
+    });
   }
 
   loadVendorScorecards(): void {
     this.loading = true;
+    this.backendError = null;
     const currentVendorName = this.selectedVendor?.vendorName;
 
     this.apiService.getVendorScorecards(this.selectedMonth, this.selectedBusinessUnit).subscribe({
       next: (data: VendorScorecard[]) => {
-        const fallbacks = this.getFallbackVendors(this.selectedMonth);
-        this.vendors = (data && data.length > 0) ? data : fallbacks;
+        this.vendors = data || [];
         this.setSelectedVendorOrDefault(currentVendorName);
         this.loading = false;
+        this.backendError = null;
+        if (this.selectedVendor) {
+          this.runSlaShieldAudit();
+        }
         this.changeDetectorRef.detectChanges();
       },
-      error: () => {
-        this.vendors = this.getFallbackVendors(this.selectedMonth);
-        this.setSelectedVendorOrDefault(currentVendorName);
+      error: (err) => {
+        this.vendors = [];
+        this.selectedVendor = null;
+        this.slaShieldResult = null;
         this.loading = false;
+        this.backendError = '⚠️ Backend Service Disconnected (http://localhost:8080/api/vendors). Please start Spring Boot backend.';
         this.changeDetectorRef.detectChanges();
       }
     });
@@ -223,6 +108,34 @@ export class VendorDashboardComponent implements OnInit {
 
   selectVendor(vendor: VendorScorecard): void {
     this.selectedVendor = vendor;
+    this.slaShieldResult = null;
+    this.runningShieldAudit = true;
+    this.shieldError = null;
+    this.changeDetectorRef.detectChanges();
+    this.runSlaShieldAudit();
+  }
+
+  runSlaShieldAudit(): void {
+    if (!this.selectedVendor) return;
+    this.runningShieldAudit = true;
+    this.slaShieldResult = null;
+    this.shieldError = null;
+    this.changeDetectorRef.detectChanges();
+
+    this.apiService.analyzeSlaShield(this.selectedVendor.vendorName, this.selectedMonth, this.selectedBusinessUnit).subscribe({
+      next: (res: SlaShieldResponse) => {
+        this.runningShieldAudit = false;
+        this.slaShieldResult = res;
+        this.shieldError = null;
+        this.changeDetectorRef.detectChanges();
+      },
+      error: (err) => {
+        this.runningShieldAudit = false;
+        this.slaShieldResult = null;
+        this.shieldError = '⚠️ Failed to perform AI SLA Shield analysis: Backend server unreachable.';
+        this.changeDetectorRef.detectChanges();
+      }
+    });
   }
 
   private setSelectedVendorOrDefault(preferredName?: string): void {
@@ -238,29 +151,37 @@ export class VendorDashboardComponent implements OnInit {
     }
   }
 
+  loadSampleClaim(type: 'weather' | 'employee' | 'breakdown'): void {
+    if (type === 'weather') {
+      this.emailClaimText = 'Subject: SLA Penalty Dispute - Heavy Rainstorm\nVendor: Rohan Mikhailov Travel\nClaim: Heavy rain on Route 4 delayed 15 cabs. Please waive the SLA penalty for this shift.';
+    } else if (type === 'employee') {
+      this.emailClaimText = 'Subject: Delay Penalty Dispute - Late Rider Boarding\nVendor: Meera Pavlov Travel\nClaim: Cabs on Route 12 waited 18 mins at node because 12 riders boarded late. Requesting penalty waiver.';
+    } else if (type === 'breakdown') {
+      this.emailClaimText = 'Subject: Penalty Waiver Appeal - Cab Engine Breakdown\nVendor: Sanjay Mikhailov Travel\nClaim: Cab KA-03-MK-9910 had engine failure. Requesting SLA penalty waiver for delayed replacement.';
+    }
+    this.claimEvaluationResult = null;
+    this.claimError = null;
+  }
+
   evaluateEmailClaim(): void {
     this.evaluatingClaim = true;
     this.claimEvaluationResult = null;
+    this.claimError = null;
     this.changeDetectorRef.detectChanges();
 
-    setTimeout(() => {
-      this.evaluatingClaim = false;
-      this.claimEvaluationResult = {
-        vendorName: 'Rohan Mikhailov Travel',
-        claimDate: 'July 10, 2026',
-        route: 'Route 4',
-        claimValid: true,
-        confidence: 96.4,
-        evidence: [
-          'GPS logs confirm average speed dropped from 38 km/h to 12 km/h during 08:00-09:30 AM on Route 4.',
-          'Cross-vendor check: Cabs from Meera Pavlov Travel & Sanjay Mikhailov Travel on Route 4 also experienced 25+ min delays.',
-          'Meteorological alert log confirms 45mm heavy rainfall alert.',
-          'Employee boarding times were normal (driver was waiting in traffic).'
-        ],
-        recommendation: 'APPROVE SLA PENALTY WAIVER',
-        reasoning: 'Delay was demonstrably caused by external severe weather event affecting all vendors on Route 4.'
-      };
-      this.changeDetectorRef.detectChanges();
-    }, 1000);
+    this.apiService.evaluateVendorClaim(this.emailClaimText, this.selectedMonth).subscribe({
+      next: (res: ClaimEvaluationResponse) => {
+        this.evaluatingClaim = false;
+        this.claimEvaluationResult = res;
+        this.claimError = null;
+        this.changeDetectorRef.detectChanges();
+      },
+      error: (err) => {
+        this.evaluatingClaim = false;
+        this.claimEvaluationResult = null;
+        this.claimError = '⚠️ Unable to evaluate claim: Backend server offline (http://localhost:8080/api/vendors/evaluate-claim).';
+        this.changeDetectorRef.detectChanges();
+      }
+    });
   }
 }

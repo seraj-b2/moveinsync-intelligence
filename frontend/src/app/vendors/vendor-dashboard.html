@@ -21,7 +21,7 @@
     </nav>
 
     <div class="route-badge">
-      Route: <code>/vendors</code>
+      Route: <code>/vendor-operations</code>
     </div>
   </header>
 
@@ -47,8 +47,18 @@
       </div>
     </section>
 
+    <!-- BACKEND DISCONNECTED ERROR ALERT -->
+    <div *ngIf="backendError" class="backend-error-banner">
+      <div class="error-icon">⚠️</div>
+      <div class="error-text">
+        <strong>Backend Connection Failed</strong>
+        <p>{{ backendError }}</p>
+      </div>
+      <button type="button" class="retry-btn" (click)="loadVendorScorecards()">Retry Connection</button>
+    </div>
+
     <!-- VENDOR INTELLIGENCE TAB -->
-    <ng-container *ngIf="activeTab === 'vendors'">
+    <ng-container *ngIf="activeTab === 'vendors' && !backendError">
       <section class="hero-card">
         <div>
           <p class="eyebrow">ENTERPRISE MOBILITY VENDOR MANAGEMENT</p>
@@ -92,6 +102,101 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <!-- PROBLEM 1 SOLUTION: AI DELAY ATTRIBUTION & SLA SHIELD CARD -->
+      <section *ngIf="selectedVendor" class="panel full-width sla-shield-panel">
+        <div class="panel-header">
+          <h2>🛡️ AI Delay Attribution & SLA Shield Engine (Problem 1 Solution)</h2>
+          <span class="shield-badge">Powered by Sarvam AI (`sarvam-105b`)</span>
+        </div>
+
+        <!-- LOADING STATE WHILE AUDITING -->
+        <div *ngIf="runningShieldAudit" class="loading-box">
+          <div class="spinner"></div>
+          <p>Running Sarvam AI Delay Attribution & SLA Protection Audit for <strong>{{ selectedVendor.vendorName }}</strong> ({{ selectedMonth }})...</p>
+          <small>Cross-referencing <code>ride_data_trip</code> telemetry & <code>emp_data.csv</code> boarding logs with Sarvam AI...</small>
+        </div>
+
+        <!-- SHIELD ERROR -->
+        <div *ngIf="shieldError && !runningShieldAudit" class="backend-error-banner">
+          <div class="error-icon">⚠️</div>
+          <div class="error-text">
+            <strong>SLA Shield Offline</strong>
+            <p>{{ shieldError }}</p>
+          </div>
+        </div>
+
+        <ng-container *ngIf="!runningShieldAudit && slaShieldResult">
+          <!-- RAW vs ADJUSTED OTA COMPARISON -->
+          <div class="shield-summary-grid">
+            <div class="shield-metric-box danger">
+              <span>Raw Unadjusted OTA</span>
+              <strong>{{ slaShieldResult.rawOtaPercentage }}%</strong>
+              <small>Fails target SLA (90.0%)</small>
+            </div>
+
+            <div class="shield-arrow">➔</div>
+
+            <div class="shield-metric-box success">
+              <span>AI-Shielded Adjusted SLA</span>
+              <strong>{{ slaShieldResult.adjustedSlaPercentage }}%</strong>
+              <small>Exempts Employee & Traffic delays</small>
+            </div>
+
+            <div class="shield-metric-box savings">
+              <span>Unfair Penalties Shielded</span>
+              <strong>${{ slaShieldResult.savedPenaltyAmount | number:'1.2-2' }}</strong>
+              <small>Protected vendor margin</small>
+            </div>
+          </div>
+
+          <!-- SARVAM AI REASONING -->
+          <div class="sarvam-reasoning-box">
+            <h4>🇮🇳 Sarvam AI Executive Attribution Analysis</h4>
+            <p>{{ slaShieldResult.sarvamAiAttributionAnalysis }}</p>
+          </div>
+
+          <!-- TRIP-LEVEL ATTRIBUTION TABLE -->
+          <div class="table-container">
+            <h4>Trip-Level Delay Attribution Log (ride_data_trip + emp_data.csv)</h4>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Trip ID</th>
+                  <th>Scheduled Pickup</th>
+                  <th>Driver Actual Pickup</th>
+                  <th>Employee Boarded</th>
+                  <th>Delay</th>
+                  <th>Delay Attribution</th>
+                  <th>Reasoning Evidence</th>
+                  <th>Penalty Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let trip of slaShieldResult.sampleAnalyzedTrips">
+                  <td><code>#{{ trip.tripId }}</code></td>
+                  <td>{{ trip.pickupTimeScheduled }}</td>
+                  <td>{{ trip.pickupTimeActual }}</td>
+                  <td>{{ trip.employeeBoardedTime }}</td>
+                  <td><strong class="danger-text">{{ trip.totalDelayMinutes }} mins</strong></td>
+                  <td>
+                    <span class="attr-pill" [class.emp]="trip.delayCategory === 'EMPLOYEE_FAULT'" [class.vendor]="trip.delayCategory === 'VENDOR_FAULT'" [class.traffic]="trip.delayCategory === 'TRAFFIC_FAULT'">
+                      {{ trip.delayCategory }}
+                    </span>
+                  </td>
+                  <td class="reason-cell">{{ trip.attributionReason }}</td>
+                  <td>
+                    <span class="shield-pill" [class.exempt]="trip.penaltyExempt" [class.penalized]="!trip.penaltyExempt">
+                      <span class="pill-icon">{{ trip.penaltyExempt ? '🛡️' : '⚠️' }}</span>
+                      <span>{{ trip.penaltyExempt ? 'EXEMPT' : 'PENALIZED' }}</span>
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </ng-container>
       </section>
 
       <!-- DETAILED VENDOR ANALYTICS -->
@@ -224,7 +329,13 @@
             <span>Unstructured Input</span>
           </div>
 
-          <textarea class="claim-textarea" [(ngModel)]="emailClaimText" rows="6"></textarea>
+          <div class="preset-buttons">
+            <button type="button" class="preset-btn" (click)="loadSampleClaim('weather')">🌧️ Rainstorm Claim</button>
+            <button type="button" class="preset-btn" (click)="loadSampleClaim('employee')">⏱️ Rider Late Claim</button>
+            <button type="button" class="preset-btn" (click)="loadSampleClaim('breakdown')">🛠️ Engine Breakdown</button>
+          </div>
+
+          <textarea class="claim-textarea" [(ngModel)]="emailClaimText" rows="6" placeholder="Type or paste any vendor email claim here..."></textarea>
 
           <button type="button" class="action-btn" (click)="evaluateEmailClaim()" [disabled]="evaluatingClaim">
             {{ evaluatingClaim ? 'Evaluating Evidence...' : 'Run AI Cross-Verification' }}
@@ -239,12 +350,14 @@
 
           <div *ngIf="evaluatingClaim" class="loading-box">
             <div class="spinner"></div>
-            <p>Analyzing GPS speed logs, weather records & peer vendor trips on Route 4...</p>
+            <p>Analyzing GPS speed logs, weather records & peer vendor trips...</p>
           </div>
 
           <div *ngIf="claimEvaluationResult && !evaluatingClaim" class="eval-result-card">
-            <div class="recommendation-header" [class.approve]="claimEvaluationResult.claimValid">
-              <span class="rec-tag">{{ claimEvaluationResult.recommendation }}</span>
+            <div class="recommendation-header" [class.approve]="claimEvaluationResult.claimValid" [class.reject]="!claimEvaluationResult.claimValid">
+              <span class="rec-tag" [class.approve-tag]="claimEvaluationResult.claimValid" [class.reject-tag]="!claimEvaluationResult.claimValid">
+                {{ claimEvaluationResult.recommendation }}
+              </span>
               <span class="confidence">Confidence: {{ claimEvaluationResult.confidence }}%</span>
             </div>
 
@@ -253,7 +366,7 @@
             <h4>Corroborating Evidence Gathered:</h4>
             <ul class="evidence-list">
               <li *ngFor="let ev of claimEvaluationResult.evidence">
-                <span class="check-icon">✓</span> {{ ev }}
+                <span class="check-icon" [class.danger-icon]="!claimEvaluationResult.claimValid">✓</span> {{ ev }}
               </li>
             </ul>
           </div>

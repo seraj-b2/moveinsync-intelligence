@@ -1,5 +1,9 @@
 package com.moveinsync.intelligence.controller;
 
+import com.moveinsync.intelligence.dto.ClaimEvaluationRequest;
+import com.moveinsync.intelligence.dto.ClaimEvaluationResponse;
+import com.moveinsync.intelligence.dto.SlaShieldRequest;
+import com.moveinsync.intelligence.dto.SlaShieldResponse;
 import com.moveinsync.intelligence.dto.VendorScorecardResponse;
 import com.moveinsync.intelligence.service.VendorService;
 import org.springframework.web.bind.annotation.*;
@@ -23,5 +27,25 @@ public class VendorController {
             @RequestParam(required = false) String businessUnit
     ) {
         return vendorService.getVendorScorecards(month, businessUnit);
+    }
+
+    @GetMapping("/business-units")
+    public List<String> getBusinessUnits() {
+        return vendorService.getBusinessUnits();
+    }
+
+    @GetMapping("/months")
+    public List<String> getAvailableMonths() {
+        return vendorService.getAvailableMonths();
+    }
+
+    @PostMapping("/evaluate-claim")
+    public ClaimEvaluationResponse evaluateClaim(@RequestBody ClaimEvaluationRequest request) {
+        return vendorService.evaluateClaim(request);
+    }
+
+    @PostMapping("/sla-shield/analyze")
+    public SlaShieldResponse analyzeSlaShield(@RequestBody SlaShieldRequest request) {
+        return vendorService.analyzeSlaShield(request);
     }
 }
